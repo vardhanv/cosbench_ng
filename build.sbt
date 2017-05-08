@@ -9,9 +9,16 @@ lazy val commonSettings = Seq(
 
   // Dependencies
   libraryDependencies ++= Seq (
-      "com.typesafe.akka" %% "akka-stream" % "2.4.16",
-      "com.typesafe.akka" %% "akka-remote" % "2.4.16",
-      "com.amazonaws" % "aws-java-sdk"  % "1.11.86"
+      "com.typesafe.akka" %% "akka-stream" % "2.4.17",
+      "com.typesafe.akka" %% "akka-remote" % "2.4.17",
+      "com.typesafe.akka" %% "akka-cluster"% "2.4.17",
+      "com.typesafe.akka" %% "akka-cluster-tools" % "2.4.17",
+      "com.typesafe.akka" % "akka-slf4j_2.11" % "2.4.17",
+      "ch.qos.logback" % "logback-classic" % "1.2.1",
+      "com.amazonaws" % "aws-java-sdk"  % "1.11.86",
+      "org.fusesource" % "sigar" % "1.6.4",
+      "com.github.scopt" %% "scopt" % "3.5.0",
+      "org.apache.commons" % "commons-lang3" % "3.1"
       ),
 
   // Scala compiler options
