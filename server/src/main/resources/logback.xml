@@ -1,0 +1,46 @@
+<!-- MASTER AND SLAVE -->
+
+<configuration>
+
+  <appender name="A1" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} [%thread]: %message%n</pattern>
+    </encoder>
+  </appender>
+
+  <timestamp key="bySecond" datePattern="yyyyMMdd'T'HHmmss"/>
+
+  <appender name="MASTER-FILE" class="ch.qos.logback.core.FileAppender">
+    <file>   /tmp/cosbench_ng/master.log </file>
+    <append> false </append>
+    <encoder>
+      <pattern>%X{akkaTimestamp} %-5level %X{akkaSource}: %msg%n</pattern>    </encoder>
+  </appender>
+
+  <!-- WORKER  -->
+
+  <appender name="WORKER-FILE" class="ch.qos.logback.core.FileAppender">
+    <file>   /tmp/cosbench_ng/slave.log </file>
+    <append> false </append>
+    <encoder>
+      <pattern>%X{akkaTimestamp} %-5level %.32X{akkaSource}: %msg%n</pattern>
+    </encoder>
+  </appender>
+  
+  
+  <logger name="cosbench_ng.S3Actor"  level="WARNING" additivity="true"><appender-ref ref="WORKER-FILE"></appender-ref></logger>
+  <logger name="cosbench_ng.S3Ops"    level="WARNING" additivity="true"><appender-ref ref="WORKER-FILE"></appender-ref></logger>
+  <logger name="cosbench_ng.SlaveWorker"  level="WARNING" additivity="true"><appender-ref ref="WORKER-FILE"></appender-ref></logger>  
+  <logger name="akka"				  level="WARNING" additivity="true"><appender-ref ref="WORKER-FILE"></appender-ref></logger>
+  
+
+  <!--  Master Only -->  
+  <logger name="cosbench_ng.MyRouter" level="WARNING" additivity="true"><appender-ref ref="MASTER-FILE"></appender-ref></logger>
+  <logger name="cosbench_ng.Main"     level="WARNING" additivity="true"><appender-ref ref="MASTER-FILE"></appender-ref></logger>
+
+
+  <root level="WARNING">
+  </root>
+  
+  
+</configuration>
