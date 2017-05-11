@@ -59,9 +59,9 @@ class MyRouter  extends Actor with ActorLogging {
       routerA ! new Broadcast(SlaveWorker.StopS3Actor())  // ask workers to stop if they can
 
       if (MyConfig.cl.get.runToCompletion == true)
-        log.error("Waiting for Slaves to finish...")
+        log.warning("Waiting for Slaves to finish...")
       else
-        log.error("Giving workers time to cleanup.. will shutdown in " + countdownToDie + " seconds")
+        log.warning("Giving workers time to cleanup.. will shutdown in " + countdownToDie + " seconds")
 
     case "Slave Not Done" => 
       cancelDie.get.cancel() // cancel the existing scheduled death

@@ -26,6 +26,14 @@
       <pattern>%X{akkaTimestamp} %-5level %.32X{akkaSource}: %msg%n</pattern>
     </encoder>
   </appender>
+
+ <!--  FINAL RESULTS -->
+  <appender name="RESULTS-FILE" class="ch.qos.logback.core.FileAppender">
+    <file>   /tmp/cosbench_ng/results.log </file>
+    <append> true </append>
+    <encoder>
+      <pattern>%msg%n</pattern>    </encoder>
+  </appender>
   
   
   <logger name="cosbench_ng.S3Actor"  level="WARNING" additivity="true"><appender-ref ref="WORKER-FILE"></appender-ref></logger>
@@ -35,9 +43,12 @@
   
 
   <!--  Master Only -->  
-  <logger name="cosbench_ng.MyRouter" level="WARNING" additivity="true"><appender-ref ref="MASTER-FILE"></appender-ref></logger>
-  <logger name="cosbench_ng.Main"     level="WARNING" additivity="true"><appender-ref ref="MASTER-FILE"></appender-ref></logger>
+  <logger name="cosbench_ng.MyRouter"  level="WARNING" additivity="true"><appender-ref ref="MASTER-FILE"></appender-ref></logger>
+  <logger name="cosbench_ng.Main"      level="WARNING" additivity="true"><appender-ref ref="MASTER-FILE"></appender-ref></logger>
 
+  <!--  Results Only -->
+  <logger name="cosbench_ng.SmryStats" level="WARNING" additivity="true"><appender-ref ref="RESULTS-FILE"></appender-ref></logger>
+  
 
   <root level="WARNING">
   </root>

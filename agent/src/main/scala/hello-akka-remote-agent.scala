@@ -27,7 +27,7 @@ object Remote  extends App {
 
   // parse the command line
   val cmd = CmdLineParser.parseCmdLine(args)
-  if (cmd.isEmpty) System.exit(1)
+  if (cmd.isEmpty) System.exit(0)
   
   // setup configuration
   val myConfig = ConfigFactory.parseString(

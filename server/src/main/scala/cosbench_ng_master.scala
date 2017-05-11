@@ -34,7 +34,8 @@ object MyConfig {
 
 case class Config(
   bucketName       : String = "Vishnu_test",
-  cmd              : String =  "PUT",  // "PUT" or "GET" - action to execute
+  cmd              : String = "PUT",  // "PUT" or "GET" - action to execute
+  testTag          : String = "NOTAG",
   
   opsRate          : Int    =  200,     // target ops per second 
   maxOps           : Long   =  5000,    // total ops

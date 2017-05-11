@@ -49,21 +49,16 @@ object CmdLineParser {
         .optional
         .text("optional, object size in KB. default = 1")
         
-      opt[Int]('t', "rangeReadStart")
-        .action((x, c) => c.copy(rangeReadStart = x))
+      opt[(Int,Int)]('g', "rangeRead")
+         .action({ case ((k, v), c) => c.copy(rangeReadStart = k, rangeReadEnd = v) })
         .validate({
-          case a if a > 0 => { success }
+          case (k,v) => 
+            if (k > 0 && v > 0 && k < v) { success }
+            else failure("Invalid range read values %d,%d".format(k,v))
         })
         .optional
-        .text("optional, range read start offset. if not specified the full object is read")
+        .text("optional, read from a sepcific offset to a particular offset. example (-g:200=400)")
 
-      opt[Int]('d', "rangeReadEnd")
-        .action((x, c) => c.copy(rangeReadEnd = x))
-        .optional
-        .validate({
-          case a if a > 0 => { success }
-        })        
-        .text("optional, range read end offset")
                 
       opt[String]('e', "ep-url")
         .action((x, c) => c.copy(endpoint = x))
@@ -75,13 +70,13 @@ object CmdLineParser {
         .optional()
         .text("optional, s3 region. default = us-east-1")
                 
-      opt[String]('f', "profile")
+      opt[String]('p', "profile")
         .action((x, c) => c.copy(awsProfile = x))
         .optional()
         .text("optional, aws profile with aws credentials. default = default. create using \"aws --configure\"")
 
 
-      opt[Unit]('r', "runtocomplete")
+      opt[Unit]('f', "runtocomplete")
         .action((_, c) => c.copy(runToCompletion = true))
         .optional
         .text("optional, changes how we terminate and forces completion of all s3Ops")
@@ -90,12 +85,17 @@ object CmdLineParser {
         .action((x, c) => c.copy(minSlaves = x))
         .optional
         .text("optional, minimum number of slaves. default = 0. More slaves = more performance")
+
+      opt[String]('t', "testtag")
+        .action((x, c) => c.copy(testTag = x))
+        .optional
+        .text("optional, Tag your test with a string which shows up in your results file")
         
 
       help("help").text("prints help text")
       
       checkConfig(c =>
-        if (c.rangeReadStart < c.rangeReadEnd) {
+        if (c.rangeReadStart > c.rangeReadEnd) {
            failure("rangeReadEnd has to be greater than or equal to rangeReadStart")
         }
         else if(c.maxOps < c.opsRate) {

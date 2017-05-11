@@ -51,6 +51,7 @@ object S3Ops {
     .withEndpointConfiguration(new EndpointConfiguration(config.get.endpoint, config.get.region))
     .withCredentials(new ProfileCredentialsProvider(config.get.awsProfile))
     .withClientConfiguration(new ClientConfiguration().withMaxErrorRetry(0))
+    .withPathStyleAccessEnabled(true)
     .build()
     
   def put(bucketName: String, objName:String, me: ActorRef, pc: OpsComplete)  =
@@ -71,7 +72,9 @@ object S3Ops {
           totalTime
         } match {
           case Success(v) => me ! S3OpsDoneMsg(pc,  GoodStat(v, v))
-          case Failure(e) => me ! S3OpsDoneMsg(pc,  BadStat())
+          case Failure(e) => 
+            log.error(e.toString()) 
+            me ! S3OpsDoneMsg(pc,  BadStat())
         }
       }
     }(S3Ops.blockingEC)

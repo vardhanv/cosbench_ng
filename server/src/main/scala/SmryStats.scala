@@ -1,6 +1,8 @@
 package cosbench_ng
 
 import java.io.File
+import org.slf4j. { LoggerFactory, Logger }
+import java.util.Date
 
 
 
@@ -97,10 +99,14 @@ class SmryStats (
   
   def printSmryStats (runTime: Long) = {
     
+    val log = LoggerFactory.getLogger(this.getClass)
+    
     val count = rspStart.inter.count
     val stdDeviation = rspStart.stdDeviation.toLong
     val objRate = count/(runTime/1000)
-      
+    
+    println("------")
+    println("Test Complete (results also logged in log file directory)")
     println ("TTFB (avg,min,max,std)              : (" +  rspStart.average.toLong 
         +  "," + rspStart.min.toLong + "," + rspStart.max.toLong 
         +  "," + rspStart.stdDeviation.toLong +") ms" );
@@ -112,8 +118,10 @@ class SmryStats (
 
     println ("No of ops  (Target, Actual)         : (" + MyConfig.cl.get.maxOps + "," + count +")")    
     println ("Ops/second (Target, Actual)         : (" + MyConfig.cl.get.opsRate +"," + objRate +")")
-    println ("Throughput(KB)/sec (Target, Actual) : (" + MyConfig.cl.get.opsRate.toFloat*MyConfig.cl.get.objSize.toFloat/1024 + "MB/s" + "," + 
-        objRate.toFloat*MyConfig.cl.get.objSize.toFloat/1024 + "MB/s" + ")")    
+    println ("Throughput(KB)/sec (Target, Actual) : (%4.2f,%4.2f) MB/s".format(
+        MyConfig.cl.get.opsRate.toFloat*MyConfig.cl.get.objSize.toFloat/1024, 
+        objRate.toFloat*MyConfig.cl.get.objSize.toFloat/1024))
+        
     println ("execution time                      : " + runTime/1000 + " seconds")
 
     println("Expected Errors:")
@@ -121,6 +129,46 @@ class SmryStats (
     println ("+ ops - queued but not started      : +" + opsNStarted.toLong)
     println ("+ ops - started but not completed   : +" + opsStartedNCompleted.toLong)
     println ("+ ops - completed but stats dropped : +" + opsCompletedStatsNSent.toLong)
+   
+    
+    val logHeader : String = "tag,time,cmd,objSize (KB),endpoint, objSize,rangeRead,rspStart_average, rspStart_min" +
+                      "rspStart_max,rspStart_stdDeviation,rspEnd_average,rspEnd_min,rspEnd_max" +
+                      "rspEnd_stdDeviation,targetMaxOps,actualOps," +
+                      "targetOpsRate,actualOpsRate,targetThroughput,actualThroughput,runTime(ms)"
+
+        
+    val logOutput = "%s,%s,%s,%d,%s,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%4.2f,%4.2f,%d".format(
+        MyConfig.cl.get.testTag,
+        new Date(System.currentTimeMillis()),
+        MyConfig.cl.get.cmd,
+        MyConfig.cl.get.objSize,
+        MyConfig.cl.get.endpoint,        
+        MyConfig.cl.get.objSize,
+        
+        if (MyConfig.cl.get.cmd == "GET" && MyConfig.cl.get.rangeReadStart != 0) 
+          MyConfig.cl.get.rangeReadEnd - MyConfig.cl.get.rangeReadStart
+        else 
+          -1,
+                
+        rspStart.average.toLong ,
+        rspStart.min.toLong ,
+        rspStart.max.toLong ,
+        rspStart.stdDeviation.toLong,
+        rspEnd.average.toLong ,
+        rspEnd.min.toLong  ,
+        rspEnd.max.toLong  , 
+        rspEnd.stdDeviation.toLong ,
+        MyConfig.cl.get.maxOps,
+        count,
+        MyConfig.cl.get.opsRate,
+        objRate,
+        MyConfig.cl.get.opsRate.toFloat*MyConfig.cl.get.objSize.toFloat/1024,
+        objRate.toFloat*MyConfig.cl.get.objSize.toFloat/1024,
+        runTime/1000)
+   
+    log.warn(logHeader)
+    log.warn(logOutput)
+    
     
     if (MyConfig.cl.get.maxOps != (count + failed.toLong + opsNStarted.toLong + opsStartedNCompleted.toLong + opsCompletedStatsNSent.toLong)) {
       println("*** WARNING: OBJECT COUNT TOTALS DONT ADD UP - Add dropped elements and check total *** ")
