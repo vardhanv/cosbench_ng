@@ -11,12 +11,14 @@ import com.amazonaws.services.s3.model.{ GetObjectRequest, ObjectMetadata }
 
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration
 import com.amazonaws.auth.profile.ProfileCredentialsProvider
+import com.amazonaws.auth.AWSCredentialsProvider
+import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
 
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.concurrent.ExecutionContext
-import scala.concurrent.{ Future, blocking }
+import scala.concurrent.{ Future, blocking, Await }
 import scala.util.{ Try, Failure, Success }
 
 
@@ -31,30 +33,56 @@ import java.io.InputStream
 
 
 
-case class OpsComplete(finalReply: ActorRef, objName: String) 
-case class S3OpsDoneMsg(h: OpsComplete, b: Stats)
-
+case class S3OpsFlush()
 
 object S3Ops {
   
    val s3Buffer : Array[Byte] = Array.ofDim(1024)      
-   val executors = Executors.newFixedThreadPool(MyConfig.maxThreads)
-   val blockingEC = ExecutionContext.fromExecutor(executors)  
+   lazy val executors  = Executors.newFixedThreadPool(MyConfig.maxThreads)
+   lazy val blockingEC = ExecutionContext.fromExecutor(executors)  
    val log = LoggerFactory.getLogger(this.getClass)
-   var config: Option[Config] = None 
+           
+   var config: Option[Config] = None
 
-   def init(c: Config) = { if(config.isEmpty) { config = Some(c) } else require (config.get == c) }
+    def init(c: Config): Boolean = {
+      if (config.isEmpty) { config = Some(c) } else require(config.get == c)
+
+      Try {
+        if (config.get.fakeS3Latency > 0)
+          Thread.sleep(config.get.fakeS3Latency)
+        else
+          s3Client.listBuckets() 
+       } match { // check if S3 is configured
+        case Success(v) => true
+        case Failure(e) => {
+          log.error("""
+                                | Something wrong with your S3 configuration. A test list bucket failed. 
+                                | Make sure you have either the ~/.aws profile accessible (docker containers 
+                                | do not have access to your aws profile). Or have the environment variables 
+                                | AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY set""".stripMargin); 
+          log.error(e.toString())        
+          false
+        }
+      }
+    }
    
    // S3 client with retries disabled
    private lazy val s3Client = AmazonS3ClientBuilder
     .standard()
     .withEndpointConfiguration(new EndpointConfiguration(config.get.endpoint, config.get.region))
-    .withCredentials(new ProfileCredentialsProvider(config.get.awsProfile))
+    .withCredentials(awsCredentials)
     .withClientConfiguration(new ClientConfiguration().withMaxErrorRetry(0))
     .withPathStyleAccessEnabled(true)
     .build()
     
-  def put(bucketName: String, objName:String, me: ActorRef, pc: OpsComplete)  =
+   lazy val awsCredentials = 
+     if (config.get.awsProfile == "default")
+       DefaultAWSCredentialsProviderChain.getInstance()
+     else
+       new ProfileCredentialsProvider(config.get.awsProfile)
+
+    
+  def put(bucketName: String, objName:String)  =
     Future {
       blocking {
         Try {
@@ -64,23 +92,27 @@ object S3Ops {
             //val byteArray : ByteArrayInputStream = new ByteArrayInputStream(s3Buffer)
             val omd = new ObjectMetadata()
             omd.setContentLength(config.get.objSize*1024)
-  
-            s3Client.putObject(bucketName, objName, byteStream(config.get.objSize*1024) , omd)
-
+              
+            if (config.get.fakeS3Latency > 0)
+              Thread.sleep(config.get.fakeS3Latency) //fake s3
+            else
+              s3Client.putObject(bucketName, objName, byteStream(config.get.objSize*1024) , omd)
+            
+            
             (System.nanoTime() / 1000000) - startTime
           }
           totalTime
         } match {
-          case Success(v) => me ! S3OpsDoneMsg(pc,  GoodStat(v, v))
+          case Success(v) => GoodStat(v, v)
           case Failure(e) => 
             log.error(e.toString()) 
-            me ! S3OpsDoneMsg(pc,  BadStat())
+            BadStat()
         }
       }
     }(S3Ops.blockingEC)
 
     
-  def get(bucketName: String, objName:String, me: ActorRef, pc: OpsComplete)  =
+  def get(bucketName: String, objName:String)  =
     Future {
       blocking {
         Try {
@@ -91,31 +123,42 @@ object S3Ops {
           
           // if range read is used
           if (config.get.rangeReadStart > -1)
-            getObjReq.setRange(config.get.rangeReadStart, config.get.rangeReadEnd) 
-         
-          
-          val s3Obj = s3Client.getObject(getObjReq)
-          val receivedTime = (System.nanoTime() / 1000000)
-          val stream = s3Obj.getObjectContent
+            getObjReq.setRange(config.get.rangeReadStart, config.get.rangeReadEnd)
 
-          while (s3Obj.getObjectContent.read(buffer) != -1) {}
-          val completeTime = (System.nanoTime() / 1000000)
+          val (receivedTime, completeTime) =
+            if (config.get.fakeS3Latency > 0) { //fake s3
+              Thread.sleep(config.get.fakeS3Latency) 
+              val t = (System.nanoTime() / 1000000)
+              (t, t)
+            } else { // real s3
 
-          stream.close()
-          s3Obj.close()
+              val s3Obj = s3Client.getObject(getObjReq)
+              val rt = (System.nanoTime() / 1000000)
+              val stream = s3Obj.getObjectContent
+
+              while (s3Obj.getObjectContent.read(buffer) != -1) {}
+              val ct = (System.nanoTime() / 1000000)
+
+              stream.close()
+              s3Obj.close()
+              (rt, ct)
+            }
 
           (receivedTime - startTime, completeTime - startTime) //(rspTime, totalTime)
         } match {
-          case Success(v) => me ! S3OpsDoneMsg(pc, GoodStat(v._1, v._2))
+          case Success(v) => GoodStat(v._1, v._2)
           case Failure(e) => 
             S3Ops.log.error("Bucket: " + bucketName + ", object: " + objName + ", " + e.toString) 
-            me ! S3OpsDoneMsg(pc, BadStat())
+            BadStat()
         }
       }
     }(S3Ops.blockingEC)
     
   
-  def shutdown() = S3Ops.executors.shutdown()
+  def shutdown() = {
+      log.debug("S3Ops has shutdown")
+      S3Ops.executors.shutdown()
+    }
 
   // this is our source of infinite bytes
   def byteStream(length: Long): InputStream = new InputStream {

@@ -2,6 +2,8 @@ package cosbench_ng
 
 
 import akka.actor. { Actor, Props, ActorLogging , Status, ActorRef, ActorSystem, Terminated, PoisonPill, Cancellable}
+import akka.event.LoggingReceive
+
 import akka.routing.{ ActorRefRoutee, SmallestMailboxRoutingLogic , Router, Broadcast }
 import akka.stream._
 
@@ -32,6 +34,8 @@ class MyRouter  extends Actor with ActorLogging {
   val countdownToDie = 1.seconds
   var cancelDie : Option[Cancellable] = None 
   
+  var pendingAck : Option[ActorRef] = None
+  
   override def postStop() =  log.debug("MyRouter PostStop Called")
 
   
@@ -47,13 +51,15 @@ class MyRouter  extends Actor with ActorLogging {
       
       log.debug("received stat response from: " + sender())
       statsAcc.map { _ ! x} // send to stats
+      pendingAck.map { _ ! "ack" }
       
     case "Slave is not configured" => //send config to slave
       require ( MyConfig.cl.isDefined )
+      log.debug("router received: slave not configured. Sending config to %s".format(sender().toString()))
       sender() ! (new ConfigMsg(MyConfig.cl.get))
       
     case "done" =>  // upstream done. time to die ?
-      log.debug("router received: done")       
+      log.debug("router received: done --------> UPSTREAM COMPLETE")       
 
       cancelDie = Some(context.system.scheduler.scheduleOnce(countdownToDie, self, "die"))
       routerA ! new Broadcast(SlaveWorker.StopS3Actor())  // ask workers to stop if they can
@@ -73,19 +79,17 @@ class MyRouter  extends Actor with ActorLogging {
       
       routerA ! new Broadcast(PoisonPill)
       routerA ! PoisonPill
-      context.watch(routerA)
+      statsAcc.map { _ ! PoisonPill } // BUG: Lots pending
+      self ! PoisonPill
       
     case msg: MyCmd =>
       // forward to slaves and wait for a response 
-      log.debug("router received: command(%d,%d)".format(msg.start,msg.end))
+      log.debug("router received: command(%d,%d). Routing to slaves.".format(msg.start,msg.end))
       routerA ! (ConsistentHashableEnvelope(msg, msg)) 
-      sender  ! "ack"
-           
-
-    case x: Terminated => 
-      log.debug("router terminated, shutting down")
-      statsAcc.map { _ ! PoisonPill } // BUG: Lots pending    
       
+      sender ! "ack"
+      pendingAck = Some(sender)
+           
       
     case x: Any => 
       log.error("should not happen: Received: " + x.toString())
@@ -93,18 +97,4 @@ class MyRouter  extends Actor with ActorLogging {
   }
 }
 
-
-
-// reaper to terminate my application
-// see http://letitcrash.com/post/30165507578/shutdown-patterns-in-akka-2
-object Reaper {  val props = Props[Reaper]  }
-
-class Reaper extends Actor with ActorLogging {  
-
-  def receive = { case x: Any  => require(false)  }
-  override def postStop = { 
-    log.debug ("Reaper shutting down...")
-    context.system.terminate()
-  }
-}
 

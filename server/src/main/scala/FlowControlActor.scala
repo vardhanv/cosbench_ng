@@ -6,7 +6,7 @@ import akka.actor.{ Actor, ActorLogging, Props, ActorRef, PoisonPill }
 import akka.cluster.ClusterEvent._
 
 import akka.stream.{ IOResult, ActorMaterializer, ActorMaterializerSettings }
-import akka.stream.{ ActorAttributes, ThrottleMode, Supervision, FlowShape, Fusing }
+import akka.stream.{ ActorAttributes, ThrottleMode, Supervision, FlowShape }
 import akka.stream.{ ClosedShape, DelayOverflowStrategy, OverflowStrategy }
 
 import akka.stream.scaladsl.{ Source, Sink, FileIO, Flow, RunnableGraph, GraphDSL }
@@ -37,8 +37,11 @@ class FlowControlActor extends Actor with ActorLogging {
 
   implicit val materializer = ActorMaterializer()
 
-  // init actions
-  val localReaper = asystem.actorOf(Reaper.props) // to terminate at the end
+   override def postStop = {
+      log.debug("FlowControlActor post stop")
+      materializer.shutdown()
+  }
+  
 
   def receive = {
     case x: MemberUp =>
@@ -56,16 +59,16 @@ class FlowControlActor extends Actor with ActorLogging {
         
         flowComplete.map(_.onComplete {
           case Success(v) =>
-            log.error("\nStream done with summary stats: ");
-
+            log.debug("\nStream successfully completed")
             val runEndTime = System.nanoTime() / 1000000
 
             v.printSmryStats(runEndTime - runStartTime)
+            context.actorSelection("/user/Reaper") ! PoisonPill
 
-            S3Ops.shutdown()
-            context.system.actorSelection("/user/*") ! PoisonPill
-
-          case Failure(v) => log.error("Stream done with error: " + v.getMessage); asystem.terminate
+          case Failure(v) => 
+            log.error("Stream done with error: " + v.getMessage); 
+            context.actorSelection("/user/Reaper") ! PoisonPill
+            
         })
       } else if (MyConfig.cl.get.minSlaves > totalSlaves){
         println("Member joined. Total slaves = " + totalSlaves
@@ -73,6 +76,9 @@ class FlowControlActor extends Actor with ActorLogging {
       } 
 
     case lr: ActorRef => {
+      
+      // TODO - print progress count
+      
       // lets setup the flow
 
       // got the router
@@ -95,16 +101,14 @@ class FlowControlActor extends Actor with ActorLogging {
       flowComplete = Some(statsCompleteF)
 
       val routerSink = Sink.actorRefWithAck(localRouter.get, "start", "ack", "done", (e) => log.error(e.toString()))
-       
-      
+
       // Put source
-      
-      // helps control our internal operations
-      val opsRateFactor = 
-      if (MyConfig.cl.get.opsRate < 100)
-        4
-      else 
-        100
+
+      // control rate of internal ops, otherwise we will generate too many messages
+      val opsRateFactor =
+        if (MyConfig.cl.get.opsRate < 10) 1
+        else if (MyConfig.cl.get.opsRate < 100) 4
+        else 100
         
       val putStream = Source.fromIterator(() => MyCmdIter(0,opsRateFactor-1) )
         .throttle(MyConfig.cl.get.opsRate/opsRateFactor, 1.second, 1, ThrottleMode.Shaping)
@@ -116,10 +120,6 @@ class FlowControlActor extends Actor with ActorLogging {
           (pStream, routerS) =>
             import GraphDSL.Implicits._
 
-            // create all the pieces and then stitch them together in the end
-
-            case class DrpdItms(smry: Int, curr: MyCmd) // to track dropped items
-
             // count how much progress in % have we made
             val countProgress = builder.add(Flow[MyCmd].scan(MyCmd(0,0))((s, n) => {
               // calc % complete                            
@@ -127,31 +127,9 @@ class FlowControlActor extends Actor with ActorLogging {
               n
             }).drop(1))
 
-            // drop items if we are unable to consume them fast enough
-            val dropItems = builder.add(Flow[MyCmd].conflateWithSeed(curr =>
-              DrpdItms(0, curr))((missed, x) => {
-                DrpdItms(missed.smry + 1, x)})
-              .withAttributes(Attributes.inputBuffer(1, 1)))
+            pStream ~> countProgress ~> routerS
 
-            // count the total dropped items
-            val totalDroppedSink = builder.add(
-              Sink.fold(zero = 0) { (s, c: DrpdItms) =>
-                if (c.smry > 0) println("Request rate too fast, add workers? Dropping: " + c.smry * (opsRateFactor) + " elements. Total dropped: " + ((s + c.smry) * opsRateFactor))
-                s + c.smry
-              })
-
-            // generic connector
-            val broadcast = builder.add(Broadcast[DrpdItms](2))
-              
-            // the next item, once we can consume them
-            val nextElem = builder.add(Flow.fromFunction { elem: DrpdItms => {
-              elem.curr }})
-            
-
-            // the final flow
-            pStream ~> countProgress ~> dropItems ~> broadcast ~> totalDroppedSink
-                                                     broadcast ~> nextElem ~> routerS
-
+                                                     
             ClosedShape
       }))
     }

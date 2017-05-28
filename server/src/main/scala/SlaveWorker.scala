@@ -2,10 +2,17 @@ package cosbench_ng
 
 
 import java.io.File
-import akka.actor. { Actor, Props, ActorLogging , Status, ActorRef , Terminated}
+import akka.actor. { Actor, Props, ActorLogging , Status, ActorRef , Terminated, Cancellable}
 import scala.collection.mutable.ListBuffer
 
 import scala.collection.mutable.ListBuffer
+import akka.event.LoggingReceive
+import scala.concurrent.Future
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.{ Try, Failure, Success }
+
+
 
 
 object SlaveWorker {
@@ -31,14 +38,21 @@ class SlaveWorker extends Actor with ActorLogging {
   // used to adjust pendingOps dynamically.
   var avgLatency: Double = 0
   var totalOps :  Long   = 0
-  var pendingOps         = 0    
   var maxPendingOps      = 1
   var shutdownStatus     = false
   
-  // track which command are we executing
-  case class CurrOp(c: MyCmd, finalReply: ActorRef, i: Long) // current op and index to where we are
-  var pendingOpList  : List[CurrOp] =  Nil
-  
+  // track which command we are executing
+  case class CurrOp(c: MyCmd, i: Long) // current op and index to where we are
+  var opsWaitingToStart  : List[CurrOp] =  Nil
+  var opsWaitingToFinish : List[Future[Stats]] =  Nil  // Futures with the completed status
+
+  // check and flush completed messages  
+  val countdownToFlushStats = 1.seconds
+  var cancelFlushStats : Option[Cancellable] = 
+    Some(context.system.scheduler.schedule(countdownToFlushStats,countdownToFlushStats, self, S3OpsFlush()))
+
+  // to send stats responses to
+  var mostRecentRouterAddress : Option[ActorRef] = None 
   
   case class DebugStats(totalPendingOps : Int, countMsgsReceived: Int)
    
@@ -49,11 +63,14 @@ class SlaveWorker extends Actor with ActorLogging {
     val f = finalStat()
     log.debug("FinalStat(%3d,%3d,%3d)".format(f.opsNStarted, f.opsStartedNCompleted,f.opsCompletedStatsNSent)) 
     log.debug("Worker: is dead.")
-    require(shutdownStatus == true)
+    if(shutdownStatus != true) {
+      log.error("Worker: unnatural death - did we get disconnected?")
+      shutdown()
+    }
   }
 
  def finalStat() : FinalStat = 
-      FinalStat(pendingOps,  accStatsList.length, pendingOpList.foldRight(0)( (s,x) => { 
+      FinalStat(opsWaitingToFinish.length,  accStatsList.length, opsWaitingToStart.foldRight(0)( (s,x) => { 
         x + ((s.c.end+1-s.c.start) - (s.i - s.c.start)).toInt
       }))
 
@@ -67,53 +84,83 @@ class SlaveWorker extends Actor with ActorLogging {
     } else MyConfig.maxThreads/5 
  
     
-  def receive = {
+  def receive =  {
     case x: MyCmd  =>
       
         require(shutdownStatus == false)
-        debugStats = DebugStats( debugStats.totalPendingOps + pendingOps, debugStats.countMsgsReceived + 1)
-              
-        pendingOpList = pendingOpList :+ CurrOp(x, sender, x.start)
+        debugStats = DebugStats( debugStats.totalPendingOps + opsWaitingToFinish.length, debugStats.countMsgsReceived + 1)
         
-        if(gConfig.isEmpty)
+        mostRecentRouterAddress = Some(sender())
+              
+        opsWaitingToStart = opsWaitingToStart :+ CurrOp(x, x.start)
+        
+        if(gConfig.isEmpty) {
           sender() ! "Slave is not configured" // ask for config
-        else 
-          pendingOpList = generateLoad(pendingOpList)  // generate a load
+          log.info("Slave requesting configuration from %s".format(sender().toString()))
+        }
+        else
+          opsWaitingToStart = generateLoad(opsWaitingToStart)  // generate a load
+
                 
-        log.warning("currLoad: x=(%6d,%6d), pendingOps = %4d, maxPendingOps = %4d, avgLatency = %4d".format(
-         x.start,x.end,pendingOps,maxPendingOps,avgLatency.toLong))
+        log.info("currLoad: x=(%6d,%6d), opsWaitingToFinish = %4d, maxPendingOps = %4d, avgLatency = %4d".format(
+         x.start,x.end,opsWaitingToFinish.length,maxPendingOps,avgLatency.toLong))
                                   
     case x: ConfigMsg => 
-      gConfig = Some(x.config)
-      S3Ops.init(gConfig.get)
-      log.debug("Slave is configured")
-      pendingOpList = generateLoad(pendingOpList)  // generate a load
       
+      log.info("Slave received config message")
+      gConfig = 
+        if (S3Ops.init(x.config))
+          Some(x.config)
+        else {
+          require(false)
+          None
+        }
+      
+      if(gConfig.isDefined) {
+         log.info("Slave is now configured")
+         opsWaitingToStart = generateLoad(opsWaitingToStart)  // generate a load
+      }
+            
          
-    case S3OpsDoneMsg(h, stat) => 
-      accStatsList = stat :: accStatsList
-      pendingOps -= 1
+    case S3OpsFlush() => 
+            
+      val completedOps   = opsWaitingToFinish.filter {_.isCompleted }
+      opsWaitingToFinish = opsWaitingToFinish.filter {_.isCompleted == false }
 
       // update stats to update maxPendingPuts
-      stat match { 
+      
+      val statList = completedOps.map( f => f.value.get match {
+        case Success(y: Stats) => y
+        case Failure(e) => log.error("received unexpexted bad stat"); require(false); BadStat()
+      })
+                  
+      statList.map { 
         case y: GoodStat =>
           avgLatency = (avgLatency * totalOps + y.rspComplete) / (totalOps + 1)
           totalOps += 1
         case _: Any => {}  
       }
 
+      // append newly completed stats to the existing list
+      accStatsList = statList ::: accStatsList
+      
+      //log.debug("S3OpsFlush: current completed stats: %d, stats waiting to be flushed: %d".format(statList.length,accStatsList.length))
+      
       //adjust maxPendingOps
       val oldMaxPendingOps = maxPendingOps
       maxPendingOps = calcMaxPendingOps()
+
       if (oldMaxPendingOps != maxPendingOps)
         log.debug("adjusting maxPendingOps from " + oldMaxPendingOps + " to " + maxPendingOps)
-
-      pendingOpList = generateLoad(pendingOpList)
+        
+      // generate load
+      opsWaitingToStart = generateLoad(opsWaitingToStart)
 
       
-      // send stats if we accumulated enough
-      if (accStatsList.length > 100) {      
-        h.finalReply ! StatList(accStatsList.toList)                
+      // TODO change length to suit large file and small file workloads
+      if (accStatsList.length > 50) {     
+        log.debug("sending %d stats to router".format(accStatsList.length))
+        mostRecentRouterAddress.map { x => x ! StatList(accStatsList.toList) }                
         accStatsList = Nil
       }
       
@@ -127,14 +174,16 @@ class SlaveWorker extends Actor with ActorLogging {
       context.stop(self)
 
     case x: SlaveWorker.StopS3Actor =>
-      if (gConfig.isDefined && gConfig.get.runToCompletion && pendingOps > 0 ) {
+      log.debug("SlaveWorker.StopS3Actor Recived")
+      
+      if (gConfig.isDefined && gConfig.get.runToCompletion && opsWaitingToFinish.length > 0 ) {
         sender ! "Slave Not Done"
         
         val outstandingOps = 
-          if (pendingOpList.length > 0 )
-            (pendingOpList.length* (pendingOpList.head.c.end - pendingOpList.head.c.start + 1)) + pendingOps
+          if (opsWaitingToStart.length > 0 )
+            (opsWaitingToStart.length* (opsWaitingToStart.head.c.end - opsWaitingToStart.head.c.start + 1)) + opsWaitingToFinish.length
           else
-            pendingOps
+            opsWaitingToFinish.length
                     
         log.warning("Slave has " + outstandingOps + " pending operations")
       }
@@ -153,7 +202,7 @@ class SlaveWorker extends Actor with ActorLogging {
     case x :: remainingList => {
       val nIndx = generateLoadOp(x)
       if (nIndx > x.c.end) generateLoad(remainingList)
-      else CurrOp(x.c, x.finalReply, nIndx) :: remainingList
+      else CurrOp(x.c, nIndx) :: remainingList
     }
     case Nil => List()
   }
@@ -161,18 +210,15 @@ class SlaveWorker extends Actor with ActorLogging {
   def generateLoadOp(c: CurrOp): Long = { // recursive for
     val bucketName = gConfig.get.bucketName
 
-    if (pendingOps < maxPendingOps && c.i <= c.c.end) {
+    if (opsWaitingToFinish.length < maxPendingOps && c.i <= c.c.end) {
       val objName = c.i.toString
-
-      pendingOps += 1
-
-      gConfig.get.cmd match {
-        case "PUT" => S3Ops.put(bucketName, objName, self, OpsComplete(c.finalReply, objName))
-        case "GET" => S3Ops.get(bucketName, objName, self, OpsComplete(c.finalReply, objName))
-        case _: Any => log.error("Unknown command"); require(false)
-      }
-
-      generateLoadOp(CurrOp(c.c, c.finalReply ,c.i + 1))
+      
+      opsWaitingToFinish = { gConfig.get.cmd match {
+        case "PUT" => S3Ops.put(bucketName, objName)
+        case "GET" => S3Ops.get(bucketName, objName)
+      }} :: opsWaitingToFinish
+            
+      generateLoadOp(CurrOp(c.c ,c.i + 1))
     } else
       c.i
   }
@@ -196,9 +242,21 @@ class SlaveWorker extends Actor with ActorLogging {
         (if(debugStats.countMsgsReceived ==0) 0 else debugStats.totalPendingOps/debugStats.countMsgsReceived))
     
     sender() ! StatList( List(fStat) )
-  }
+  }   
+}
 
-  
-  
-  
+
+// reaper to terminate my application
+// see http://letitcrash.com/post/30165507578/shutdown-patterns-in-akka-2
+object Reaper {  val props = Props[Reaper]  }
+
+class Reaper extends Actor with ActorLogging {  
+
+  def receive = { case x: Any  => require(false)  }
+  override def postStop = { 
+    log.debug ("Reaper shutting down...")
+
+    S3Ops.shutdown()
+    context.system.terminate()
+  }
 }

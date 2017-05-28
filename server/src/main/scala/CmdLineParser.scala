@@ -31,23 +31,17 @@ object CmdLineParser {
         })
         .text("command to execute. One of PUT/GET")
 
-      opt[(Int, Int)]('o', "ops")
-        .action({ case ((k, v), c) => c.copy(maxOps = k, opsRate = v) })
-        .required()
-        .validate({
-          case (k, v) =>
-            if (k <= -1L) failure("maxOps >= 0 <= 1 billion")
-            else if (v <= -1L || v >= 1000L) failure("opsRate <= 100000 >= 10")
-            else success
-        })
-        .keyValueName("maxOps", "opsRate")
-        .text("execute \"maxOps\" s3Ops at a rate of \"opsRate\"/sec. example (-o:5000=200) ")
-        
+                        
+      opt[String]('e', "ep-url")
+        .action((x, c) => c.copy(endpoint = x))
+        .optional()
+        .text("optional, endpoint. default = https://s3.amazonaws.com")        
 
-        opt[Int]('z', "objSize")
-        .action((x, c) => c.copy(objSize = x))
+      opt[Unit]('f', "runtocomplete")
+        .action((_, c) => c.copy(runToCompletion = true))
         .optional
-        .text("optional, object size in KB. default = 1")
+        .text("optional, changes how we terminate and forces completion of all s3Ops")
+
         
       opt[(Int,Int)]('g', "rangeRead")
          .action({ case ((k, v), c) => c.copy(rangeReadStart = k, rangeReadEnd = v) })
@@ -59,27 +53,36 @@ object CmdLineParser {
         .optional
         .text("optional, read from a sepcific offset to a particular offset. example (-g:200=400)")
 
+        
+      opt[Int]('k', "fakeS3")
+        .action((x, c) => c.copy(fakeS3Latency = x))
+        .optional
+        .text("optional, fake s3 with latency in ms")
+        
                 
-      opt[String]('e', "ep-url")
-        .action((x, c) => c.copy(endpoint = x))
-        .optional()
-        .text("optional, endpoint. default = https://s3.amazonaws.com")
-
-      opt[String]('r', "region")
-        .action((x, c) => c.copy(region = x))
-        .optional()
-        .text("optional, s3 region. default = us-east-1")
+      opt[(Int, Int)]('o', "ops")
+        .action({ case ((k, v), c) => c.copy(maxOps = k, opsRate = v) })
+        .required()
+        .validate({
+          case (k, v) =>
+            if (k <= -1L) failure("maxOps >= 0 <= 1 billion")
+            else if (v <= -1L || v >= 100000L) failure("opsRate <= 100000 >= 0")
+            else success
+        })
+        .keyValueName("maxOps", "opsRate")
+        .text("execute \"maxOps\" s3Ops at a rate of \"opsRate\"/sec. example (-o:5000=200) ")
                 
+        
       opt[String]('p', "profile")
         .action((x, c) => c.copy(awsProfile = x))
         .optional()
         .text("optional, aws profile with aws credentials. default = default. create using \"aws --configure\"")
 
-
-      opt[Unit]('f', "runtocomplete")
-        .action((_, c) => c.copy(runToCompletion = true))
-        .optional
-        .text("optional, changes how we terminate and forces completion of all s3Ops")
+      opt[String]('r', "region")
+        .action((x, c) => c.copy(region = x))
+        .optional()
+        .text("optional, s3 region. default = us-east-1")
+        
 
       opt[Int]('s', "slaves")
         .action((x, c) => c.copy(minSlaves = x))
@@ -90,6 +93,11 @@ object CmdLineParser {
         .action((x, c) => c.copy(testTag = x))
         .optional
         .text("optional, Tag your test with a string which shows up in your results file")
+
+      opt[Int]('z', "objSize")
+        .action((x, c) => c.copy(objSize = x))
+        .optional
+        .text("optional, object size in KB. default = 1")
         
 
       help("help").text("prints help text")

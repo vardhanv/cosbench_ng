@@ -106,7 +106,7 @@ class SmryStats (
     val objRate = count/(runTime/1000)
     
     println("------")
-    println("Test Complete (results also logged in log file directory)")
+    println("Test Complete (results logged in %s):".format(LogFile.directory))
     println ("TTFB (avg,min,max,std)              : (" +  rspStart.average.toLong 
         +  "," + rspStart.min.toLong + "," + rspStart.max.toLong 
         +  "," + rspStart.stdDeviation.toLong +") ms" );
@@ -122,28 +122,31 @@ class SmryStats (
         MyConfig.cl.get.opsRate.toFloat*MyConfig.cl.get.objSize.toFloat/1024, 
         objRate.toFloat*MyConfig.cl.get.objSize.toFloat/1024))
         
-    println ("execution time                      : " + runTime/1000 + " seconds")
-
+    println ("Run time                            : " + runTime/1000 + " seconds")
     println("Expected Errors:")
     println ("+ ops - failed                      : +" + failed.toLong)
     println ("+ ops - queued but not started      : +" + opsNStarted.toLong)
     println ("+ ops - started but not completed   : +" + opsStartedNCompleted.toLong)
     println ("+ ops - completed but stats dropped : +" + opsCompletedStatsNSent.toLong)
-   
-    
-    val logHeader : String = "tag,time,cmd,objSize (KB),endpoint, objSize,rangeRead,rspStart_average, rspStart_min" +
-                      "rspStart_max,rspStart_stdDeviation,rspEnd_average,rspEnd_min,rspEnd_max" +
-                      "rspEnd_stdDeviation,targetMaxOps,actualOps," +
-                      "targetOpsRate,actualOpsRate,targetThroughput,actualThroughput,runTime(ms)"
+    println ("+ ops - Unaccounted / Unacknowledged: +" + (MyConfig.cl.get.maxOps - 
+                                                            (count + failed.toLong + 
+                                                            opsNStarted.toLong + 
+                                                            opsStartedNCompleted.toLong +
+                                                            opsCompletedStatsNSent.toLong)))
+
+                                                            
+    val logHeader : String = "tag,time,cmd,objSize(KB),endpoint,rangeRead,rspStart(avg),rspStart(min)," +
+                      "rspStart(max),rspStart(SD),rspEnd(avg),rspEnd(min),rspEnd(max)," +
+                      "rspEnd(SD),targetOps,actualOps," +
+                      "targetOpsRate,actualOpsRate,targetThroughput,actualThroughput,runTime(ms),cmdLine"
 
         
-    val logOutput = "%s,%s,%s,%d,%s,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%4.2f,%4.2f,%d".format(
+    val logOutput = "%s,%s,%s,%d,%s,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%4.2f,%4.2f,%d,%s".format(
         MyConfig.cl.get.testTag,
         new Date(System.currentTimeMillis()),
         MyConfig.cl.get.cmd,
         MyConfig.cl.get.objSize,
         MyConfig.cl.get.endpoint,        
-        MyConfig.cl.get.objSize,
         
         if (MyConfig.cl.get.cmd == "GET" && MyConfig.cl.get.rangeReadStart != 0) 
           MyConfig.cl.get.rangeReadEnd - MyConfig.cl.get.rangeReadStart
@@ -164,16 +167,12 @@ class SmryStats (
         objRate,
         MyConfig.cl.get.opsRate.toFloat*MyConfig.cl.get.objSize.toFloat/1024,
         objRate.toFloat*MyConfig.cl.get.objSize.toFloat/1024,
-        runTime/1000)
+        runTime/1000,
+        MyConfig.rawCl.get.mkString(" "))
    
     log.warn(logHeader)
     log.warn(logOutput)
-    
-    
-    if (MyConfig.cl.get.maxOps != (count + failed.toLong + opsNStarted.toLong + opsStartedNCompleted.toLong + opsCompletedStatsNSent.toLong)) {
-      println("*** WARNING: OBJECT COUNT TOTALS DONT ADD UP - Add dropped elements and check total *** ")
-    }
-
+        
   }
   
 }
