@@ -45,8 +45,3 @@ lazy val agent = project.in(file("agent")).
    settings(commonSettings: _*).dependsOn("server")
 lazy val server = project.in(file("server")).
    settings(commonSettings: _*)
-
-
-// Docker specific configuration
-//enablePlugins(JavaAppPackaging)
-//enablePlugins(DockerPlugin)
