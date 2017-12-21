@@ -11,8 +11,9 @@ import com.amazonaws.services.s3.model.{ GetObjectRequest, ObjectMetadata }
 
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration
 import com.amazonaws.auth.profile.ProfileCredentialsProvider
-import com.amazonaws.auth.AWSCredentialsProvider
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
+import com.amazonaws.auth.{ AWSStaticCredentialsProvider, BasicAWSCredentials}
+
 
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
@@ -55,16 +56,20 @@ object S3Ops {
        } match { // check if S3 is configured
         case Success(v) => true
         case Failure(e) => {
-          log.error("""
-                                | Something wrong with your S3 configuration. A test list bucket failed. 
-                                | Make sure you have either the ~/.aws profile accessible (docker containers 
-                                | do not have access to your aws profile). Or have the environment variables 
-                                | AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY set""".stripMargin); 
-          log.error(e.toString())        
+          val errString =  """
+                                | Something wrong with your S3 configuration.
+                                | 
+                                | A test list bucket failed. Make sure you have either the ~/.aws profile is accessible 
+                                | (docker containers do not have access to your aws profile). Or have the environment 
+                                | variables AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY set""".stripMargin; 
+          log.error(errString)                      
+          log.error(e.toString())
           false
         }
       }
     }
+   
+   lazy val awsCredentials = new AWSStaticCredentialsProvider(new BasicAWSCredentials(config.get.aidSkey._1,config.get.aidSkey._2))
    
    // S3 client with retries disabled
    private lazy val s3Client = AmazonS3ClientBuilder
@@ -75,11 +80,6 @@ object S3Ops {
     .withPathStyleAccessEnabled(true)
     .build()
     
-   lazy val awsCredentials = 
-     if (config.get.awsProfile == "default")
-       DefaultAWSCredentialsProviderChain.getInstance()
-     else
-       new ProfileCredentialsProvider(config.get.awsProfile)
 
     
   def put(bucketName: String, objName:String)  =

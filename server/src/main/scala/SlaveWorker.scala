@@ -2,7 +2,7 @@ package cosbench_ng
 
 
 import java.io.File
-import akka.actor. { Actor, Props, ActorLogging , Status, ActorRef , Terminated, Cancellable}
+import akka.actor. { Actor, Props, ActorLogging , Status, ActorRef , Terminated, Cancellable, PoisonPill}
 import scala.collection.mutable.ListBuffer
 
 import scala.collection.mutable.ListBuffer
@@ -64,7 +64,7 @@ class SlaveWorker extends Actor with ActorLogging {
     log.debug("FinalStat(%3d,%3d,%3d)".format(f.opsNStarted, f.opsStartedNCompleted,f.opsCompletedStatsNSent)) 
     log.debug("Worker: is dead.")
     if(shutdownStatus != true) {
-      log.error("Worker: unnatural death - did we get disconnected?")
+      log.debug("Worker: unnatural death - did we get disconnected?")
       shutdown()
     }
   }
@@ -111,8 +111,9 @@ class SlaveWorker extends Actor with ActorLogging {
       gConfig = 
         if (S3Ops.init(x.config))
           Some(x.config)
-        else {
-          require(false)
+        else {          
+          context.system.actorSelection("/user/Reaper") ! PoisonPill
+          shutdown()
           None
         }
       
@@ -171,7 +172,7 @@ class SlaveWorker extends Actor with ActorLogging {
     case x: Terminated =>
       log.error("I received a Terminated: " + x)      
       shutdown()      
-      context.stop(self)
+
 
     case x: SlaveWorker.StopS3Actor =>
       log.debug("SlaveWorker.StopS3Actor Recived")
@@ -186,12 +187,9 @@ class SlaveWorker extends Actor with ActorLogging {
             opsWaitingToFinish.length
                     
         log.warning("Slave has " + outstandingOps + " pending operations")
-      }
-      else { 
-        log.debug("shutting down woker")
-        shutdown()
-        context.stop(self)
-      }
+      } 
+      else shutdown()
+      
     
       
     case x: Any => log.error("unexpected message: " + x)
@@ -242,6 +240,8 @@ class SlaveWorker extends Actor with ActorLogging {
         (if(debugStats.countMsgsReceived ==0) 0 else debugStats.totalPendingOps/debugStats.countMsgsReceived))
     
     sender() ! StatList( List(fStat) )
+
+    context.stop(self)
   }   
 }
 

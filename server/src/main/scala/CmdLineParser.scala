@@ -5,6 +5,18 @@ package cosbench_ng
 import scopt._
 import org.slf4j.LoggerFactory
 
+//AWS
+import com.amazonaws.ClientConfiguration
+import com.amazonaws.regions.Regions
+import com.amazonaws.services.s3.{ AmazonS3Client, AmazonS3ClientBuilder }
+
+import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration
+import com.amazonaws.auth.profile.ProfileCredentialsProvider
+import com.amazonaws.auth.{ AWSStaticCredentialsProvider, BasicAWSCredentials}
+import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
+
+import scala.util.{Try, Success, Failure }
+
 
 object CmdLineParser {
 
@@ -31,6 +43,26 @@ object CmdLineParser {
         })
         .text("command to execute. One of PUT/GET")
 
+      opt[Int]('m', "maxOps")
+        .action((x, c) => c.copy(maxOps = x) )
+        .required()
+        .validate({
+          case (x) =>
+            if (x <= -1L) failure("maxOps >= 0 <= 1 billion")
+            else success
+        })
+        .text("execute \"maxOps\" s3Ops.")
+
+      opt[Int]('o', "opsRate")
+        .action((x, c) => c.copy(opsRate = x) )
+        .required()
+        .validate({
+          case (x) =>
+            if (x <= -1L || x >= 100000L) failure("opsRate <= 100000 >= 0")
+            else success
+        })
+        .text("execute s3Ops at a rate of \"opsRate\"/sec. ")
+                
                         
       opt[String]('e', "ep-url")
         .action((x, c) => c.copy(endpoint = x))
@@ -57,26 +89,26 @@ object CmdLineParser {
       opt[Int]('k', "fakeS3")
         .action((x, c) => c.copy(fakeS3Latency = x))
         .optional
-        .text("optional, fake s3 with latency in ms")
-        
-                
-      opt[(Int, Int)]('o', "ops")
-        .action({ case ((k, v), c) => c.copy(maxOps = k, opsRate = v) })
-        .required()
-        .validate({
-          case (k, v) =>
-            if (k <= -1L) failure("maxOps >= 0 <= 1 billion")
-            else if (v <= -1L || v >= 100000L) failure("opsRate <= 100000 >= 0")
-            else success
-        })
-        .keyValueName("maxOps", "opsRate")
-        .text("execute \"maxOps\" s3Ops at a rate of \"opsRate\"/sec. example (-o:5000=200) ")
-                
+        .text("optional, fake s3 with 'value' ms of fake latency")
+
         
       opt[String]('p', "profile")
-        .action((x, c) => c.copy(awsProfile = x))
+        .action((x, c) => { 
+                         
+            val (accessId,secretKey) = {
+             // lets check if AWS configuration is correct
+             val awsCredentials =
+               if (x == "default")
+                 DefaultAWSCredentialsProviderChain.getInstance()
+               else
+                 new ProfileCredentialsProvider(x)
+              (awsCredentials.getCredentials.getAWSAccessKeyId, awsCredentials.getCredentials.getAWSSecretKey)
+            }
+            
+            c.copy(aidSkey = (accessId,secretKey))           
+          })
         .optional()
-        .text("optional, aws profile with aws credentials. default = default. create using \"aws --configure\"")
+        .text("optional, aws profile with aws credentials. create using \"aws --configure\"")
 
       opt[String]('r', "region")
         .action((x, c) => c.copy(region = x))
@@ -109,11 +141,31 @@ object CmdLineParser {
         else if(c.maxOps < c.opsRate) {
           failure("maxOps has to be greater than opsRate")
         }
-        else
-          success
+        else Try { 
+           val awsCredentials = 
+             if(c.aidSkey._1 == "aid") // still the default value
+                 DefaultAWSCredentialsProviderChain.getInstance().getCredentials
+             else
+                 new BasicAWSCredentials(c.aidSkey._1,c.aidSkey._2)
+           
+           val s3Client = AmazonS3ClientBuilder
+              .standard()
+              .withEndpointConfiguration(new EndpointConfiguration(c.endpoint, c.region))
+              .withCredentials(new AWSStaticCredentialsProvider(awsCredentials))
+              .withClientConfiguration(new ClientConfiguration().withMaxErrorRetry(0))
+              .withPathStyleAccessEnabled(true)
+              .build()
+      
+            s3Client.listBuckets() 
+          } match {
+            case Success(e) => success
+            case Failure(e) => 
+              log.error(e.toString()) 
+              log.error("Using AID = " + c.aidSkey._1)
+              log.error("Using secret key = " + c.aidSkey._2)
+              failure("Problem with S3 configuration, unable to do a test list-bucket. ")
+          }
       )
-
-
     }
 
     cmdLineParser.parse(a, Config()) match {

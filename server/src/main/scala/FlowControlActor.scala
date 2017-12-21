@@ -66,7 +66,8 @@ class FlowControlActor extends Actor with ActorLogging {
             context.actorSelection("/user/Reaper") ! PoisonPill
 
           case Failure(v) => 
-            log.error("Stream done with error: " + v.getMessage); 
+            log.error("Master terminating with an error");
+            log.debug("Stream done with error: " + v.getMessage); 
             context.actorSelection("/user/Reaper") ! PoisonPill
             
         })

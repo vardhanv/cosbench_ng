@@ -15,6 +15,7 @@ import akka.cluster.singleton._
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
+
 import java.net.InetAddress
 
 import akka.util.{ Timeout }
@@ -24,7 +25,7 @@ object MyConfig {
   val config = ConfigFactory.load().getConfig("Master.Cosbench_ng")
   var cl: Option[Config]           = None // parsed command line
   var rawCl: Option[Array[String]] = None // raw cmd line
-
+  
   // internal config
   val maxThreads : Int = config.getInt("maxThreads")  
 }
@@ -43,7 +44,7 @@ case class Config(
 
   endpoint         : String = "https://s3.amazonaws.com",
   region           : String = "us-east-1", 
-  awsProfile       : String = "default",
+  aidSkey          : (String, String) = ("aid", "skey"),
   fakeS3Latency    : Long   =  0,      // fake s3 latency
   
   runToCompletion  : Boolean = false,  // don't exit, but wait for everything to complete
@@ -73,13 +74,8 @@ object Main {
 
     val log = LoggerFactory.getLogger(this.getClass)
     
-    val cmdLine = CmdLineParser.parseCmdLine(args)
-
-    MyConfig.rawCl = Some(args)
-    MyConfig.cl    =
-      if (cmdLine.isDefined)   Some(cmdLine.get)
-      else { System.exit(0) ;  None }
-          
+    processCmdLine(args)
+              
     // validate and setup config file        
     val portNumber   = ConfigFactory.load().getInt("Master.akka.remote.artery.canonical.port")
     val hostName     = sys.env.get("HOST_IP_ADDR").getOrElse(InetAddress.getLocalHost.getHostAddress) 
@@ -130,7 +126,17 @@ object Main {
     cluster.subscribe(flowControlActor, ClusterEvent.initialStateAsEvents,  classOf[MemberEvent])
 
     // wait for everything to run and then shutdown    
-  }  
+  }
+
+  def processCmdLine(args: Array[String]) = {
+
+    MyConfig.rawCl = Some(args)
+    MyConfig.cl = CmdLineParser.parseCmdLine(args)
+
+    if (MyConfig.cl.isDefined) { } // all okay
+    else System.exit(0)
+  }
+
 }
 
 
