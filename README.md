@@ -13,8 +13,10 @@ Features
 * Request New Features / Log Bugs here https://github.com/vardhanv/cosbench_ng/issues
 
 How To Execute
-* Get the master shell script https://github.com/vardhanv/cosbench_ng/blob/master/master-start.sh
-* Get the slave shell script https://github.com/vardhanv/cosbench_ng/blob/master/slave-start.sh
+* Get the master & slave shell scripts
+$ wget https://raw.githubusercontent.com/vardhanv/cosbench_ng/master/master-start.sh
+$ wget https://raw.githubusercontent.com/vardhanv/cosbench_ng/master/slave-start.sh
+
 * You are off to the races
 
 More Details
