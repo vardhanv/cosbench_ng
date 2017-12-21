@@ -16,6 +16,7 @@ How To Execute
 * Get the master & slave shell scripts
 
 $ wget https://raw.githubusercontent.com/vardhanv/cosbench_ng/master/master-start.sh
+
 $ wget https://raw.githubusercontent.com/vardhanv/cosbench_ng/master/slave-start.sh
 
 * You are off to the races
