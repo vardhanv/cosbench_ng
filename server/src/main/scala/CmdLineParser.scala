@@ -5,42 +5,7 @@ package cosbench_ng
 import scopt._
 import org.slf4j.LoggerFactory
 
-//AWS
-import com.amazonaws.ClientConfiguration
-import com.amazonaws.regions.Regions
-import com.amazonaws.services.s3.{ AmazonS3Client, AmazonS3ClientBuilder }
 
-import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration
-import com.amazonaws.auth.profile.ProfileCredentialsProvider
-import com.amazonaws.auth.{ AWSStaticCredentialsProvider, BasicAWSCredentials}
-import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
-
-import scala.util.{Try, Success, Failure }
-import javax.net.ssl.{TrustManager, X509TrustManager, SSLSocketFactory, HostnameVerifier, SSLSession}
-import java.security.cert.X509Certificate
-import org.apache.http.conn.ssl.{SSLConnectionSocketFactory }
-import org.apache.http.ssl.{SSLContextBuilder, TrustStrategy}
-
-
-object SSLNoVerifyConnFactory {
-  def get() : SSLConnectionSocketFactory =  {
-    // No ssl verification
-
-    // from: http://literatejava.com/networks/ignore-ssl-certificate-errors-apache-httpclient-4-4/
-    // setup a trust strategy that allows all certificates            
-    val sslContext = SSLContextBuilder.create()
-      .useProtocol("SSL")
-      .loadTrustMaterial(null, new TrustStrategy() {
-        def isTrusted(arg0: Array[X509Certificate], arg1: String) = true
-      })
-      .build()
-      
-    val sslConFactory = new SSLConnectionSocketFactory(sslContext,
-      new HostnameVerifier { def verify(hostname: String, session: SSLSession) = true })
-    
-    return sslConFactory
-  }
-}
 
 
 object CmdLineParser {
@@ -172,38 +137,13 @@ object CmdLineParser {
           failure("maxOps has to be greater than opsRate")
         }
         else {
-          val awsCredentials =
-            if (c.aidSkey._1 == "aid") // still the default value
-              DefaultAWSCredentialsProviderChain.getInstance().getCredentials
-            else
-              new BasicAWSCredentials(c.aidSkey._1, c.aidSkey._2)
-
-          Try {
-                     
-            val clientConfig = new ClientConfiguration().withMaxErrorRetry(0)
-            clientConfig.getApacheHttpClientConfig()
-                .setSslSocketFactory(SSLNoVerifyConnFactory.get())
-            
-            val s3Client = AmazonS3ClientBuilder
-              .standard()
-              .withEndpointConfiguration(new EndpointConfiguration(c.endpoint, c.region))
-              .withCredentials(new AWSStaticCredentialsProvider(awsCredentials))
-              .withClientConfiguration(clientConfig)
-              .withPathStyleAccessEnabled(true)
-              .build()
-
-            s3Client.listBuckets()
-          } match {
-            case Success(e) => success
-            case Failure(e) =>
-              log.error("Problem with S3 configuration, unable to do a test list-bucket. ")              
-              log.error("Using AID        = " + awsCredentials.getAWSAccessKeyId())
-              log.error("Using secret key = " + awsCredentials.getAWSSecretKey())
-              log.error("Using endpoint   = " + c.endpoint)
-              log.error(e.toString())              
-              failure("S3 configuration error")              
+          GetS3Client.get(c)
+          if(GetS3Client.test == false)
+             failure("S3 configuration error") 
+           else
+             success
           }
-        })
+        )
     }
 
     cmdLineParser.parse(a, Config()) match {

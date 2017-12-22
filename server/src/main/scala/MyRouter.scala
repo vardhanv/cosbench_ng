@@ -1,25 +1,16 @@
 package cosbench_ng
 
 
-import akka.actor. { Actor, Props, ActorLogging , Status, ActorRef, ActorSystem, Terminated, PoisonPill, Cancellable}
-import akka.event.LoggingReceive
+import akka.actor. { Actor, Props, ActorLogging , ActorRef, PoisonPill, Cancellable }
 
-import akka.routing.{ ActorRefRoutee, SmallestMailboxRoutingLogic , Router, Broadcast }
-import akka.stream._
+import akka.routing.{ Broadcast }
 
-import scala.util.Failure
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
-
-import akka.stream.scaladsl.{ Source, SourceQueue, SourceQueueWithComplete }
-
-
-import java.io.File
 
 import akka.routing.{ FromConfig }
 import akka.routing.ConsistentHashingRouter._
 
-import scala.concurrent.Future
 
 
 object MyRouter { def props() = Props(classOf[MyRouter]) }

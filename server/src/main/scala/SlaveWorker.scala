@@ -1,16 +1,12 @@
 package cosbench_ng
 
 
-import java.io.File
 import akka.actor. { Actor, Props, ActorLogging , Status, ActorRef , Terminated, Cancellable, PoisonPill}
-import scala.collection.mutable.ListBuffer
 
-import scala.collection.mutable.ListBuffer
-import akka.event.LoggingReceive
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.util.{ Try, Failure, Success }
+import scala.util.{ Failure, Success }
 
 
 

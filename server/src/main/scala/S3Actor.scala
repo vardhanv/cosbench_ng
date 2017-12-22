@@ -5,34 +5,109 @@ package cosbench_ng
 import org.slf4j.LoggerFactory
 
 import com.amazonaws.ClientConfiguration
-import com.amazonaws.regions.Regions
-import com.amazonaws.services.s3.{ AmazonS3Client, AmazonS3ClientBuilder }
+import com.amazonaws.services.s3.{ AmazonS3, AmazonS3ClientBuilder }
 import com.amazonaws.services.s3.model.{ GetObjectRequest, ObjectMetadata }
 
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration
-import com.amazonaws.auth.profile.ProfileCredentialsProvider
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
 import com.amazonaws.auth.{ AWSStaticCredentialsProvider, BasicAWSCredentials}
 
 
 import java.util.concurrent.Executors
-import java.util.concurrent.atomic.AtomicInteger
 
 import scala.concurrent.ExecutionContext
-import scala.concurrent.{ Future, blocking, Await }
 import scala.util.{ Try, Failure, Success }
+import scala.concurrent.{Future, blocking}
 
 
-import java.io.File
-import java.io.IOException
-
-import akka.actor. { Actor, Props, ActorLogging, ActorRef}
-
-import org.apache.commons.lang3.StringUtils
-import java.io.ByteArrayInputStream
 import java.io.InputStream
 
+import org.apache.http.conn.ssl.{SSLConnectionSocketFactory }
+import org.apache.http.ssl.{SSLContextBuilder, TrustStrategy}
+import javax.net.ssl.{HostnameVerifier, SSLSession}
+import java.security.cert.X509Certificate
 
+
+object GetS3Client {
+  val log = LoggerFactory.getLogger(this.getClass)
+
+  def get(c: Config) = {
+    if (s3Client.isEmpty)
+      s3Client = Some(createS3Client(c))
+
+    s3Client.get
+  }
+
+  def test: Boolean =
+    Try {
+      s3Client.get.listBuckets()
+    } match {
+      case Success(e) => true
+      case Failure(e) =>
+        log.error(e.toString)
+        false
+    }
+
+  private var s3Client: Option[AmazonS3] = None
+
+  private def sslNoVerifyConnFactory(): SSLConnectionSocketFactory = {
+    // No ssl verification
+
+    // from: http://literatejava.com/networks/ignore-ssl-certificate-errors-apache-httpclient-4-4/
+    // setup a trust strategy that allows all certificates
+    val sslContext = SSLContextBuilder.create()
+      .useProtocol("SSL")
+      .loadTrustMaterial(null, new TrustStrategy() {
+        def isTrusted(arg0: Array[X509Certificate], arg1: String) = true
+      })
+      .build()
+
+    val sslConFactory = new SSLConnectionSocketFactory(
+      sslContext,
+      new HostnameVerifier { def verify(hostname: String, session: SSLSession) = true })
+
+    return sslConFactory
+  }
+
+  private def createS3Client(c: Config): AmazonS3 = {
+    val awsCredentials =
+      if (c.aidSkey._1 == "aid") // still the default value
+        DefaultAWSCredentialsProviderChain.getInstance().getCredentials
+      else
+        new BasicAWSCredentials(c.aidSkey._1, c.aidSkey._2)
+
+    val clientConfig = new ClientConfiguration().withMaxErrorRetry(0)
+    clientConfig.getApacheHttpClientConfig()
+      .setSslSocketFactory(sslNoVerifyConnFactory())
+
+    // S3 client with retries disabled
+    val s3Client = AmazonS3ClientBuilder
+      .standard()
+      .withEndpointConfiguration(new EndpointConfiguration(c.endpoint, c.region))
+      .withCredentials(new AWSStaticCredentialsProvider(awsCredentials))
+      .withClientConfiguration(clientConfig)
+      .withPathStyleAccessEnabled(true)
+      .build()
+
+    Try {
+      s3Client.listBuckets()
+    } match {
+      case Success(e) => true
+      case Failure(e) =>
+        log.error("Problem with S3 configuration, unable to do a test list-bucket. ")
+        log.error("Using AID        = " + awsCredentials.getAWSAccessKeyId())
+        log.error("Using secret key = " + awsCredentials.getAWSSecretKey())
+        log.error("Using endpoint   = " + c.endpoint)
+        log.error(e.toString)
+        System.exit(1)
+
+        false
+    }
+
+    s3Client
+  }
+
+}
 
 case class S3OpsFlush()
 
@@ -45,41 +120,18 @@ object S3Ops {
            
    var config: Option[Config] = None
 
-    def init(c: Config): Boolean = {
-      if (config.isEmpty) { config = Some(c) } else require(config.get == c)
+  def init(c: Config): Boolean = {
+    if (config.isEmpty) { config = Some(c) } else require(config.get == c)
 
-      Try {
-        if (config.get.fakeS3Latency > 0)
-          Thread.sleep(config.get.fakeS3Latency)
-        else
-          s3Client.listBuckets() 
-       } match { // check if S3 is configured
-        case Success(v) => true
-        case Failure(e) => {
-          val errString =  """
-                                | Something wrong with your S3 configuration.
-                                | 
-                                | A test list bucket failed. Make sure you have either the ~/.aws profile is accessible 
-                                | (docker containers do not have access to your aws profile). Or have the environment 
-                                | variables AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY set""".stripMargin; 
-          log.error(errString)                      
-          log.error(e.toString())
-          false
-        }
-      }
-    }
-   
-   lazy val awsCredentials = new AWSStaticCredentialsProvider(new BasicAWSCredentials(config.get.aidSkey._1,config.get.aidSkey._2))
-   
+    if (config.get.fakeS3Latency <= 0)
+      GetS3Client.get(c)
+  
+    true
+  }
+
+              
    // S3 client with retries disabled
-   private lazy val s3Client = AmazonS3ClientBuilder
-    .standard()
-    .withEndpointConfiguration(new EndpointConfiguration(config.get.endpoint, config.get.region))
-    .withCredentials(awsCredentials)
-    .withClientConfiguration(new ClientConfiguration().withMaxErrorRetry(0))
-    .withPathStyleAccessEnabled(true)
-    .build()
-    
+   private lazy val s3Client = GetS3Client.get(config.get)
 
     
   def put(bucketName: String, objName:String)  =

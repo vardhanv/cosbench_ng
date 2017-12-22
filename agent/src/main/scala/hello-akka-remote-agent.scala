@@ -1,28 +1,14 @@
 package cosbench_ng
 
 
-import akka.NotUsed
-import akka.pattern.ask
-import akka.stream.{IOResult, ActorMaterializer, ClosedShape, DelayOverflowStrategy, ThrottleMode}
-import akka.stream.scaladsl.{Source, Sink, FileIO, Flow, RunnableGraph, GraphDSL, Broadcast, Balance, Merge}
-import akka.stream.Attributes._
-import akka.actor. { ActorSystem, Actor, ActorLogging, Props, Address, PoisonPill, ActorRef }
-import akka.util.{ ByteString, Timeout }
-import scala.util.{ Success, Failure }
-import scala.concurrent.Future
-import scala.concurrent.duration._
-import java.nio.file.Paths
-import scala.BigInt
-import scala.math.BigInt.int2bigInt
+import akka.actor. { ActorSystem, Actor, ActorLogging, Props, PoisonPill }
 
 //Cluster imports
 import akka.cluster.{ Cluster, ClusterEvent }
 import akka.cluster.ClusterEvent._
-import akka.cluster.singleton._
 import com.typesafe.config._
 
 import akka.event.LoggingReceive
-
 
 import java.net.InetAddress
 
