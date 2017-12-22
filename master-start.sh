@@ -39,7 +39,7 @@ source ./.cosbench_ng
 
 if [ -z ${HOST_IP_ADDR} ]; then 
     echo "HOST_IP_ADDR needs to be set"; 
-    echo "run: $0 --configure to configure your environment"
+    echo "run: $0 --configure to configure your environment first"
     exit 1
 else 
     echo "Using HOST_IP_ADDR: $HOST_IP_ADDR"; 
@@ -47,16 +47,16 @@ fi
 
 if [ -z ${AWS_ACCESS_KEY_ID} ]; then 
     echo "AWS_ACCESS_KEY_ID needs to be set"; 
-    echo "run: $0 --configure to configure your environment"
+    echo "run: $0 --configure to configure your environment first"
     exit 1
 else 
     echo "Using AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID"; 
-    echo "run: $0 --configure to configure your environment"
+    echo "run: $0 --configure to configure your environment first"
 fi
 
 if [ -z ${AWS_SECRET_ACCESS_KEY} ]; then 
     echo "AWS_SECRET_ACCESS_KEY needs to be set"; 
-    echo "run: $0 --configure to configure your environment"
+    echo "run: $0 --configure to configure your environment first"
     exit 1
 else 
     echo "Using AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY"; 
@@ -64,7 +64,7 @@ fi
 
 if [ -z ${MY_TARGET} ]; then 
     echo "MY_TARGET needs to be set"; 
-    echo "run: $0 --configure to configure your environment"
+    echo "run: $0 --configure to configure your environment first"
     exit 1
 else 
     echo "Using MY_TARGET: $MY_TARGET"; 
