@@ -13,12 +13,23 @@ Features
 * Request New Features / Log Bugs here https://github.com/vardhanv/cosbench_ng/issues
 
 How To Execute
-* Get the master & slave shell scripts
+## On the master node
+* Get the master shell scripts
 ```
 $ wget https://raw.githubusercontent.com/vardhanv/cosbench_ng/master/master-start.sh
-$ wget https://raw.githubusercontent.com/vardhanv/cosbench_ng/master/slave-start.sh
+$ chmod +x ./master-start.sh
+$ ./master-start.sh --help
 ```
 * You are off to the races
+
+
+## On a seperate slave node (Optional Step - Only required if you need more workers)
+* Get the slave shell scripts
+```
+$ wget https://raw.githubusercontent.com/vardhanv/cosbench_ng/master/slave-start.sh
+$ chmod +x ./slave-start.sh
+$ ./slave-start.sh --help
+```
 
 More Details
 * Master Container Available at: docker pull vardhanv/cosbench_ng

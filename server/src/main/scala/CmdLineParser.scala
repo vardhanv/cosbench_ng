@@ -16,6 +16,31 @@ import com.amazonaws.auth.{ AWSStaticCredentialsProvider, BasicAWSCredentials}
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
 
 import scala.util.{Try, Success, Failure }
+import javax.net.ssl.{TrustManager, X509TrustManager, SSLSocketFactory, HostnameVerifier, SSLSession}
+import java.security.cert.X509Certificate
+import org.apache.http.conn.ssl.{SSLConnectionSocketFactory }
+import org.apache.http.ssl.{SSLContextBuilder, TrustStrategy}
+
+
+object SSLNoVerifyConnFactory {
+  def get() : SSLConnectionSocketFactory =  {
+    // No ssl verification
+
+    // from: http://literatejava.com/networks/ignore-ssl-certificate-errors-apache-httpclient-4-4/
+    // setup a trust strategy that allows all certificates            
+    val sslContext = SSLContextBuilder.create()
+      .useProtocol("SSL")
+      .loadTrustMaterial(null, new TrustStrategy() {
+        def isTrusted(arg0: Array[X509Certificate], arg1: String) = true
+      })
+      .build()
+      
+    val sslConFactory = new SSLConnectionSocketFactory(sslContext,
+      new HostnameVerifier { def verify(hostname: String, session: SSLSession) = true })
+    
+    return sslConFactory
+  }
+}
 
 
 object CmdLineParser {
@@ -51,7 +76,7 @@ object CmdLineParser {
             if (x <= -1L) failure("maxOps >= 0 <= 1 billion")
             else success
         })
-        .text("execute \"maxOps\" s3Ops.")
+        .text("execute \"maxOps\" number of s3 operations.")
 
       opt[Int]('o', "opsRate")
         .action((x, c) => c.copy(opsRate = x) )
@@ -61,7 +86,7 @@ object CmdLineParser {
             if (x <= -1L || x >= 100000L) failure("opsRate <= 100000 >= 0")
             else success
         })
-        .text("execute s3Ops at a rate of \"opsRate\"/sec. ")
+        .text("execute s3 operations at a rate of \"opsRate\"/sec. ")
                 
                         
       opt[String]('e', "ep-url")
@@ -91,7 +116,10 @@ object CmdLineParser {
         .optional
         .text("optional, fake s3 with 'value' ms of fake latency")
 
-        
+      /*  
+       *  Commenting out, since it can cause confusion because my 
+       *  docker containers don't have access to the profile yet
+       *        
       opt[String]('p', "profile")
         .action((x, c) => { 
                          
@@ -109,6 +137,8 @@ object CmdLineParser {
           })
         .optional()
         .text("optional, aws profile with aws credentials. create using \"aws --configure\"")
+        * 
+        */
 
       opt[String]('r', "region")
         .action((x, c) => c.copy(region = x))
@@ -141,31 +171,39 @@ object CmdLineParser {
         else if(c.maxOps < c.opsRate) {
           failure("maxOps has to be greater than opsRate")
         }
-        else Try { 
-           val awsCredentials = 
-             if(c.aidSkey._1 == "aid") // still the default value
-                 DefaultAWSCredentialsProviderChain.getInstance().getCredentials
-             else
-                 new BasicAWSCredentials(c.aidSkey._1,c.aidSkey._2)
-           
-           val s3Client = AmazonS3ClientBuilder
+        else {
+          val awsCredentials =
+            if (c.aidSkey._1 == "aid") // still the default value
+              DefaultAWSCredentialsProviderChain.getInstance().getCredentials
+            else
+              new BasicAWSCredentials(c.aidSkey._1, c.aidSkey._2)
+
+          Try {
+                     
+            val clientConfig = new ClientConfiguration().withMaxErrorRetry(0)
+            clientConfig.getApacheHttpClientConfig()
+                .setSslSocketFactory(SSLNoVerifyConnFactory.get())
+            
+            val s3Client = AmazonS3ClientBuilder
               .standard()
               .withEndpointConfiguration(new EndpointConfiguration(c.endpoint, c.region))
               .withCredentials(new AWSStaticCredentialsProvider(awsCredentials))
-              .withClientConfiguration(new ClientConfiguration().withMaxErrorRetry(0))
+              .withClientConfiguration(clientConfig)
               .withPathStyleAccessEnabled(true)
               .build()
-      
-            s3Client.listBuckets() 
+
+            s3Client.listBuckets()
           } match {
             case Success(e) => success
-            case Failure(e) => 
-              log.error(e.toString()) 
-              log.error("Using AID = " + c.aidSkey._1)
-              log.error("Using secret key = " + c.aidSkey._2)
-              failure("Problem with S3 configuration, unable to do a test list-bucket. ")
+            case Failure(e) =>
+              log.error("Problem with S3 configuration, unable to do a test list-bucket. ")              
+              log.error("Using AID        = " + awsCredentials.getAWSAccessKeyId())
+              log.error("Using secret key = " + awsCredentials.getAWSSecretKey())
+              log.error("Using endpoint   = " + c.endpoint)
+              log.error(e.toString())              
+              failure("S3 configuration error")              
           }
-      )
+        })
     }
 
     cmdLineParser.parse(a, Config()) match {
