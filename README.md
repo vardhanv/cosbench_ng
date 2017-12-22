@@ -4,7 +4,7 @@ Cosbench - NG: Redefining S3 Benchmarking
 
 S3 Performance tester, that allows you to add multiple slaves and scale up your testing.
 
-##Features
+## Features
 
 * Limit load generated to specific objects/second rate
 * Configure multiple slaves, so that you can scale out your tests
@@ -12,7 +12,7 @@ S3 Performance tester, that allows you to add multiple slaves and scale up your 
 * Measure time to first and time to last byte
 * Request New Features / Log Bugs here https://github.com/vardhanv/cosbench_ng/issues
 
-##How To Execute
+## How To Execute
 ### On the master node
 * Get the master shell scripts
 ```
