@@ -16,7 +16,7 @@ S3 Performance tester, that allows you to add multiple slaves and scale up your 
 ### On the master node
 * Get the master shell scripts
 ```
-$ wget https://raw.githubusercontent.com/vardhanv/cosbench_ng/master/master-start.sh
+$ wget -O master-start.sh https://raw.githubusercontent.com/vardhanv/cosbench_ng/master/master-start.sh
 $ chmod +x ./master-start.sh
 $ ./master-start.sh --help
 ```
@@ -26,7 +26,7 @@ $ ./master-start.sh --help
 * find a seperate linux box/vm
 * Get the slave shell scripts
 ```
-$ wget https://raw.githubusercontent.com/vardhanv/cosbench_ng/master/slave-start.sh
+$ wget -O slave-start.sh https://raw.githubusercontent.com/vardhanv/cosbench_ng/master/slave-start.sh
 $ chmod +x ./slave-start.sh
 $ ./slave-start.sh --help
 ```
