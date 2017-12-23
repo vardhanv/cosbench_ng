@@ -31,7 +31,6 @@ elif [ "$1" == "--configure" ]; then
    exit 0 
 fi
 
-docker pull vardhanv/cosbench_ng
 
 source ./.cosbench_ng
 

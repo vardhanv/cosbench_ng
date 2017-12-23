@@ -40,9 +40,9 @@ object CmdLineParser {
       opt[String]('m', "master")
         .required()
         .action((x, c) => c.copy(master = Some(x)))
-        .text("Starts with \"akka://\". See master console for text starting with \"Cosbench_ng master UP at: akka://..\" ")
+        .text("\"akka://master_ip:port\". See master console for text with \"Cosbench_ng master UP at: akka://\" ")
 
-      help("help").text("prints help text")
+      help("help").text("prints this text")
 
     }
 
