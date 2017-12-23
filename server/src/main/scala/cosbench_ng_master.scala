@@ -1,7 +1,6 @@
 package cosbench_ng
 
 
-import akka.pattern.ask
 
 import com.typesafe.config.ConfigFactory
 import akka.actor.{ ActorSystem, PoisonPill }
@@ -12,7 +11,6 @@ import akka.cluster.ClusterEvent._
 import akka.cluster.singleton._
 
 // log4j
-import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 
@@ -20,6 +18,10 @@ import java.net.InetAddress
 
 import akka.util.{ Timeout }
 import scala.concurrent.duration._
+
+import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
+import com.amazonaws.auth.{ AWSStaticCredentialsProvider, BasicAWSCredentials }
+
 
 object MyConfig {
   val config = ConfigFactory.load().getConfig("Master.Cosbench_ng")
@@ -75,6 +77,41 @@ object Main {
     val log = LoggerFactory.getLogger(this.getClass)
     
     processCmdLine(args)
+
+    val c = MyConfig.cl.get
+    
+    val s3Cred =
+        if (c.aidSkey._1 == "aid") // still the default value
+          DefaultAWSCredentialsProviderChain.getInstance().getCredentials
+        else
+          new BasicAWSCredentials(c.aidSkey._1, c.aidSkey._2)
+
+    val aidSkey = (s3Cred.getAWSAccessKeyId, s3Cred.getAWSSecretKey)
+
+    // create a new config except for the access id
+    MyConfig.cl = Some(Config(
+      c.bucketName,
+      c.cmd,
+      c.testTag,
+      c.opsRate,
+      c.maxOps,
+      c.objSize,
+      c.rangeReadStart,
+      c.rangeReadEnd,
+      c.endpoint,
+      c.region,
+      aidSkey,
+      c.fakeS3Latency,
+      c.runToCompletion,
+      c.minSlaves))  
+    
+    GetS3Client.get(MyConfig.cl.get)
+      
+    if (GetS3Client.test == false) {
+        println("S3 configuration error")
+        System.exit(1)        
+    }
+    
               
     // validate and setup config file        
     val portNumber   = ConfigFactory.load().getInt("Master.akka.remote.artery.canonical.port")

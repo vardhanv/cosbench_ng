@@ -9,7 +9,6 @@ import com.amazonaws.services.s3.{ AmazonS3, AmazonS3ClientBuilder }
 import com.amazonaws.services.s3.model.{ GetObjectRequest, ObjectMetadata }
 
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration
-import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
 import com.amazonaws.auth.{ AWSStaticCredentialsProvider, BasicAWSCredentials}
 
 
@@ -70,13 +69,13 @@ object GetS3Client {
   }
 
   private def createS3Client(c: Config): AmazonS3 = {
-    val awsCredentials =
-      if (c.aidSkey._1 == "aid") // still the default value
-        DefaultAWSCredentialsProviderChain.getInstance().getCredentials
-      else
-        new BasicAWSCredentials(c.aidSkey._1, c.aidSkey._2)
+    
+    require (c.aidSkey._1 != "aid")
+    val awsCredentials = new BasicAWSCredentials(c.aidSkey._1, c.aidSkey._2)
 
     val clientConfig = new ClientConfiguration().withMaxErrorRetry(0)
+    
+    // No SSL-Verify
     clientConfig.getApacheHttpClientConfig()
       .setSslSocketFactory(sslNoVerifyConnFactory())
 

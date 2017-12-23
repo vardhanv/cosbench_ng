@@ -35,7 +35,7 @@ class MyRouter  extends Actor with ActorLogging {
       log.debug("router received: start")
       sender ! "ack"
 
-    case aRef: ActorRef => //init case 
+    case aRef: ActorRef => //init case from FlowControlActor
       statsAcc = Some(aRef)
       
     case x: StatList => 

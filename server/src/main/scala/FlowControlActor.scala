@@ -78,11 +78,7 @@ class FlowControlActor extends Actor with ActorLogging {
 
     case lr: ActorRef => {
       
-      // TODO - print progress count
-      
-      // lets setup the flow
-
-      // got the router
+      // this is the constructor. The router sent from main 
       localRouter = Some(lr)
 
       require(localRouter.isDefined)
