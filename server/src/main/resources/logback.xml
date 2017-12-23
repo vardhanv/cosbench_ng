@@ -8,7 +8,7 @@
         <level>ERROR</level>
     </filter>
     <encoder>
-      <pattern>%d{HH:mm:ss.SSS} %-5level: %message%n</pattern>
+      <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} %message%n</pattern>
     </encoder>
   </appender>
 
@@ -24,7 +24,7 @@
     <file>   /tmp/cosbench_ng/debug.log </file>
     <append> false </append>
     <encoder>
-      <pattern>%X{akkaTimestamp} %-5level %X{akkaSource}: %msg%n</pattern>
+      <pattern>%X{akkaTimestamp} %-5level %logger{36} %X{akkaSource}: %msg%n</pattern>
     </encoder>
   </appender>
   
@@ -41,8 +41,12 @@
   </appender>
   
 
-  <logger name="cosbench_ng" level="DEBUG" additivity="true"><appender-ref ref="WORKER-FILE-ASYNC"></appender-ref></logger>  
-  <logger name="akka"	     level="DEBUG" additivity="true"><appender-ref ref="WORKER-FILE-ASYNC"></appender-ref></logger>
+  <!--  Turning on/off logging of particular classes -->
+  <logger name="cosbench_ng"  level="WARN" additivity="true"><appender-ref ref="WORKER-FILE-ASYNC"></appender-ref></logger>  
+  <logger name="cosbench_ng.MyRouter"  level="WARN" additivity="true"><appender-ref ref="WORKER-FILE-ASYNC"></appender-ref></logger>  
+  <logger name="cosbench_ng.SlaveWorker"  level="WARN" additivity="true"><appender-ref ref="WORKER-FILE-ASYNC"></appender-ref></logger>
+  <logger name="cosbench_ng.MyRouter"  level="WARN" additivity="true"><appender-ref ref="WORKER-FILE-ASYNC"></appender-ref></logger>  
+  <logger name="akka"	     level="WARN" additivity="true"><appender-ref ref="WORKER-FILE-ASYNC"></appender-ref></logger>
   
   <!--  Results Only -->
   <logger name="cosbench_ng.SmryStats" level="WARNING" additivity="true"><appender-ref ref="RESULTS-FILE"></appender-ref></logger>

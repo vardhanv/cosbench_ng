@@ -21,7 +21,7 @@
   <!-- WORKER  -->
 
   <appender name="WORKER-FILE" class="ch.qos.logback.core.FileAppender">
-    <file>   /tmp/cosbench_ng/debug.log </file>
+    <file>   /tmp/cosbench_ng/debug-slave.log </file>
     <append> false </append>
     <encoder>
       <pattern>%X{akkaTimestamp} %-5level %X{akkaSource}: %msg%n</pattern>
@@ -41,7 +41,7 @@
   </appender>
   
 
-  <logger name="cosbench_ng" level="DEBUG" additivity="true"><appender-ref ref="WORKER-FILE-ASYNC"></appender-ref></logger>  
+  <logger name="cosbench_ng" level="WARN" additivity="true"><appender-ref ref="WORKER-FILE-ASYNC"></appender-ref></logger>  
   <logger name="akka"	     level="DEBUG" additivity="true"><appender-ref ref="WORKER-FILE-ASYNC"></appender-ref></logger>
   
   <!--  Results Only -->
