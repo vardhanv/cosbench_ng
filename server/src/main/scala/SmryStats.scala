@@ -1,8 +1,8 @@
 package cosbench_ng
 
-import java.io.File
-import org.slf4j. { LoggerFactory, Logger }
+import org.slf4j. { LoggerFactory }
 import java.util.Date
+import java.nio.file.{ FileSystems, Files, StandardOpenOption }
 
 
 
@@ -135,13 +135,13 @@ class SmryStats (
                                                             opsCompletedStatsNSent.toLong)))
 
                                                             
-    val logHeader : String = "tag,time,cmd,objSize(KB),endpoint,rangeRead,rspStart(avg),rspStart(min)," +
-                      "rspStart(max),rspStart(SD),rspEnd(avg),rspEnd(min),rspEnd(max)," +
-                      "rspEnd(SD),targetOps,actualOps," +
-                      "targetOpsRate,actualOpsRate,targetThroughput,actualThroughput,runTime(ms),cmdLine"
+    val logHeader : String = "tag,time,cmd,objSize(KB),endpoint,rangeRead,targetOps,actualOps," +
+                      "targetOpsRate,actualOpsRate,ttFb(avg),ttFb(min)," +
+                      "ttFb(max),ttFb(SD),ttLb(avg),ttLb(min),ttLb(max)," +
+                      "ttLb(SD),targetThroughput,actualThroughput,runTime(ms),cmdLine\n"
 
         
-    val logOutput = "%s,%s,%s,%d,%s,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%4.2f,%4.2f,%d,%s".format(
+    val logOutput = "%s,%s,%s,%d,%s,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%4.2f,%4.2f,%d,%s\n".format(
         MyConfig.cl.get.testTag,
         new Date(System.currentTimeMillis()),
         MyConfig.cl.get.cmd,
@@ -152,6 +152,11 @@ class SmryStats (
           MyConfig.cl.get.rangeReadEnd - MyConfig.cl.get.rangeReadStart
         else 
           -1,
+
+        MyConfig.cl.get.maxOps,
+        count,
+        MyConfig.cl.get.opsRate,
+        objRate,
                 
         rspStart.average.toLong ,
         rspStart.min.toLong ,
@@ -161,17 +166,19 @@ class SmryStats (
         rspEnd.min.toLong  ,
         rspEnd.max.toLong  , 
         rspEnd.stdDeviation.toLong ,
-        MyConfig.cl.get.maxOps,
-        count,
-        MyConfig.cl.get.opsRate,
-        objRate,
         MyConfig.cl.get.opsRate.toFloat*MyConfig.cl.get.objSize.toFloat/1024,
         objRate.toFloat*MyConfig.cl.get.objSize.toFloat/1024,
         runTime/1000,
         MyConfig.rawCl.get.mkString(" "))
    
-    log.warn(logHeader)
     log.warn(logOutput)
+    
+    val p = FileSystems.getDefault().getPath("/tmp/cosbench_ng/results.csv")
+    
+    if (p.toFile().exists == false)
+      Files.write(p, logHeader.getBytes, StandardOpenOption.CREATE)
+      
+    Files.write( p, logOutput.getBytes, StandardOpenOption.APPEND)
         
   }
   

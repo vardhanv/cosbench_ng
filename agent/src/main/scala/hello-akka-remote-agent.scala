@@ -12,11 +12,26 @@ import akka.event.LoggingReceive
 
 import java.net.InetAddress
 
+// log4j
+import org.slf4j.{LoggerFactory}
+import ch.qos.logback.classic.Level
+
+
 object Remote  extends App {
 
+   val log = LoggerFactory.getLogger(this.getClass)
+  
   // parse the command line
   val cmd = CmdLineParser.parseCmdLine(args)
   if (cmd.isEmpty) System.exit(0)
+
+  // set debug based on commandline
+  if (cmd.get.debug) {
+    log.warn("Setting debug mode")
+    LoggerFactory.getLogger("cosbench_ng")
+      .asInstanceOf[ch.qos.logback.classic.Logger]
+      .setLevel(Level.DEBUG)
+  }
 
   
   val (hostName,bindHostname) = 

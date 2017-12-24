@@ -156,7 +156,7 @@ object S3Ops {
         } match {
           case Success(v) => GoodStat(v, v)
           case Failure(e) => 
-            log.error(e.toString()) 
+            log.warn("Bucket: " + bucketName + ", object: " + objName + ", " + e.toString()) 
             BadStat()
         }
       }
@@ -199,7 +199,7 @@ object S3Ops {
         } match {
           case Success(v) => GoodStat(v._1, v._2)
           case Failure(e) => 
-            S3Ops.log.error("Bucket: " + bucketName + ", object: " + objName + ", " + e.toString) 
+            log.warn("Bucket: " + bucketName + ", object: " + objName + ", " + e.toString) 
             BadStat()
         }
       }

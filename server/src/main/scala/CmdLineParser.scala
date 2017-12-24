@@ -39,7 +39,7 @@ object CmdLineParser {
         })
         .text("execute \"maxOps\" number of s3 operations.")
 
-      opt[Int]('o', "opsRate")
+      opt[Int]('r', "opsRate")
         .action((x, c) => c.copy(opsRate = x))
         .required()
         .validate({
@@ -54,7 +54,7 @@ object CmdLineParser {
         .optional()
         .text("optional, endpoint. default = https://s3.amazonaws.com")
 
-      opt[Unit]('f', "runtocomplete")
+      opt[Unit]('f', "finish-all-ops")
         .action((_, c) => c.copy(runToCompletion = true))
         .optional
         .text("optional, changes how we terminate and forces completion of all s3Ops")
@@ -98,7 +98,7 @@ object CmdLineParser {
         *
         */
 
-      opt[String]('r', "region")
+      opt[String]('g', "region")
         .action((x, c) => c.copy(region = x))
         .optional()
         .text("optional, s3 region. default = us-east-1")
@@ -118,6 +118,12 @@ object CmdLineParser {
         .optional
         .text("optional, object size in KB. default = 1")
 
+      opt[Unit]('d', "debug")
+        .action((_, c) => c.copy(debug = true))
+        .optional
+        .text("optional, turn on debugging. Logs are in /tmp/cosbench_ng")
+        
+        
       help("help").text("prints help text")
 
       checkConfig(c =>

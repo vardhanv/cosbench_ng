@@ -27,12 +27,20 @@ class MyRouter  extends Actor with ActorLogging {
   
   var pendingAck : Option[ActorRef] = None
   
-  override def postStop() =  log.debug("MyRouter PostStop Called")
+  override def postStop() =  {
+    // router kills all its resources
+    // kills itself
+    // after it dies, asks flowcontrol to die
+    // flowcontrol will tell reaper to shut everything down
+    
+    log.debug("MyRouter PostStop Called")
+    context.actorSelection("/user/FlowControl") ! PoisonPill    
+  }
 
   
   def receive = {
     case "start" =>
-      log.debug("router received: start")
+      log.info("router received: start")
       sender ! "ack"
 
     case aRef: ActorRef => //init case from FlowControlActor
@@ -46,19 +54,19 @@ class MyRouter  extends Actor with ActorLogging {
       
     case "Slave is not configured" => //send config to slave
       require ( MyConfig.cl.isDefined )
-      log.debug("router received: slave not configured. Sending config to %s".format(sender().toString()))
+      log.info("router received: slave not configured. Sending config to %s".format(sender().toString()))
       sender() ! (new ConfigMsg(MyConfig.cl.get))
       
     case "done" =>  // upstream done. time to die ?
-      log.debug("router received: done --------> UPSTREAM COMPLETE")       
+      log.info("router received: done --------> UPSTREAM COMPLETE")       
 
       cancelDie = Some(context.system.scheduler.scheduleOnce(countdownToDie, self, "die"))
       routerA ! new Broadcast(SlaveWorker.StopS3Actor())  // ask workers to stop if they can
 
       if (MyConfig.cl.get.runToCompletion == true)
-        log.warning("Waiting for Slaves to finish...")
+        log.info("Waiting for Slaves to finish...")
       else
-        log.warning("Giving workers time to cleanup.. will shutdown in " + countdownToDie + " seconds")
+        log.info("Giving workers time to cleanup.. will shutdown in " + countdownToDie + " seconds")
 
     case "Slave Not Done" => 
       cancelDie.get.cancel() // cancel the existing scheduled death
@@ -68,14 +76,15 @@ class MyRouter  extends Actor with ActorLogging {
     case "die" =>
       log.info("router received: die")
       
-      routerA ! new Broadcast(PoisonPill)
+      routerA ! Broadcast(PoisonPill)
       routerA ! PoisonPill
       statsAcc.map { _ ! PoisonPill } // BUG: Lots pending
       self ! PoisonPill
+    
       
     case msg: MyCmd =>
       // forward to slaves and wait for a response 
-      log.debug("router received: command(%d,%d). Routing to slaves.".format(msg.start,msg.end))
+      log.info("router received: command(%d,%d). Routing to slaves.".format(msg.start,msg.end))
       routerA ! (ConsistentHashableEnvelope(msg, msg)) 
       
       sender ! "ack"

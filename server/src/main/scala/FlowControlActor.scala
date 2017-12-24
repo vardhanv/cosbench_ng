@@ -5,20 +5,16 @@ import akka.actor.{ Actor, ActorLogging, Props, ActorRef, PoisonPill }
 
 import akka.cluster.ClusterEvent._
 
-import akka.stream.{ IOResult, ActorMaterializer, ActorMaterializerSettings }
-import akka.stream.{ ActorAttributes, ThrottleMode, Supervision, FlowShape }
-import akka.stream.{ ClosedShape, DelayOverflowStrategy, OverflowStrategy }
+import akka.stream.{ ActorMaterializer }
+import akka.stream.{ ThrottleMode }
+import akka.stream.{ ClosedShape }
 
-import akka.stream.scaladsl.{ Source, Sink, FileIO, Flow, RunnableGraph, GraphDSL }
-import akka.stream.scaladsl.{ Broadcast, Balance, Merge, Keep }
-import akka.stream.Attributes
-import akka.stream.Attributes._
+import akka.stream.scaladsl.{ Source, Sink, Flow, RunnableGraph, GraphDSL }
+import akka.stream.scaladsl.{ Keep }
 
-import scala.concurrent.{ Future, Promise }
+import scala.concurrent.{ Future }
 import scala.concurrent.duration._
 import scala.util.{ Success, Failure }
-
-import akka.cluster.singleton._
 
 
 object FlowControlActor {
@@ -29,7 +25,7 @@ class FlowControlActor extends Actor with ActorLogging {
   var totalSlaves = 0
   var localRouter: Option[ActorRef] = None
   var graphToRun: Option[akka.stream.scaladsl.RunnableGraph[NotUsed]] = None
-  var flowComplete: Option[Future[SmryStats]] = None
+  var statFlowComplete: Option[Future[SmryStats]] = None
 
   val asystem = context.system
 
@@ -40,6 +36,7 @@ class FlowControlActor extends Actor with ActorLogging {
    override def postStop = {
       log.debug("FlowControlActor post stop")
       materializer.shutdown()
+      context.actorSelection("/user/Reaper") ! PoisonPill              
   }
   
 
@@ -53,27 +50,27 @@ class FlowControlActor extends Actor with ActorLogging {
 
         val runStartTime = System.nanoTime / 1000000
 
-        require(graphToRun.isDefined && flowComplete.isDefined)
+        require(graphToRun.isDefined && statFlowComplete.isDefined)
 
         graphToRun.map(_.run())
         
-        flowComplete.map(_.onComplete {
+        statFlowComplete.map(_.onComplete {
           case Success(v) =>
-            log.debug("\nStream successfully completed")
+            log.debug("Stream successfully completed")
             val runEndTime = System.nanoTime() / 1000000
 
             v.printSmryStats(runEndTime - runStartTime)
-            context.actorSelection("/user/Reaper") ! PoisonPill
 
           case Failure(v) => 
             log.error("Master terminating with an error");
-            log.debug("Stream done with error: " + v.getMessage); 
+            log.error("Stream done with error: " + v.getMessage); 
             context.actorSelection("/user/Reaper") ! PoisonPill
             
         })
       } else if (MyConfig.cl.get.minSlaves > totalSlaves){
-        println("Member joined. Total slaves = " + totalSlaves
-          + ". Waiting for quorom slaves(pending: " + (MyConfig.cl.get.minSlaves - totalSlaves) + ") ...")
+        println("Waiting for " + 
+                 (MyConfig.cl.get.minSlaves - totalSlaves) + " more slave/slaves."
+                 + " Total slaves = " + totalSlaves)
       } 
 
     case lr: ActorRef => {
@@ -95,10 +92,11 @@ class FlowControlActor extends Actor with ActorLogging {
           .toMat(statsSink)(Keep.both).run()
 
       localRouter.get ! statsFlowActor
-      flowComplete = Some(statsCompleteF)
+      statFlowComplete = Some(statsCompleteF)
 
       val routerSink = Sink.actorRefWithAck(localRouter.get, "start", "ack", "done", (e) => log.error(e.toString()))
 
+      // putStream --> routerSink --> statsFlowActor
       // Put source
 
       // control rate of internal ops, otherwise we will generate too many messages

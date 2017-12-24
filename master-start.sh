@@ -5,7 +5,7 @@
     read -e -p "Enter your s3 target (e.g https://xyz.com:8082): " MY_TARGET
     read -ep "Enter the S3 Access Id: "  AWS_ACCESS_KEY_ID
     read -ep "Enter the S3 Secret Key: " AWS_SECRET_ACCESS_KEY
-    read -ep "Enter IP Address of the host running cosbench_ng: " HOST_IP_ADDR
+    read -ep "Enter IP Address of the master: " HOST_IP_ADDR
 
     echo "All your details are being saved in file .cosbench_ng"
 

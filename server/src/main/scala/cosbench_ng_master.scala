@@ -4,6 +4,7 @@ package cosbench_ng
 
 import com.typesafe.config.ConfigFactory
 import akka.actor.{ ActorSystem, PoisonPill }
+import akka.event.Logging.DebugLevel
 
 //Cluster imports
 import akka.cluster.{ Cluster, ClusterEvent }
@@ -11,16 +12,15 @@ import akka.cluster.ClusterEvent._
 import akka.cluster.singleton._
 
 // log4j
-import org.slf4j.LoggerFactory
-
+import org.slf4j.{LoggerFactory}
+import ch.qos.logback.classic.Level
 
 import java.net.InetAddress
 
 import akka.util.{ Timeout }
 import scala.concurrent.duration._
 
-import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
-import com.amazonaws.auth.{ AWSStaticCredentialsProvider, BasicAWSCredentials }
+import com.amazonaws.auth.{DefaultAWSCredentialsProviderChain, BasicAWSCredentials }
 
 
 object MyConfig {
@@ -29,7 +29,7 @@ object MyConfig {
   var rawCl: Option[Array[String]] = None // raw cmd line
   
   // internal config
-  val maxThreads : Int = config.getInt("maxThreads")  
+  val maxThreads : Int = config.getInt("maxThreads")
 }
 
 case class Config(
@@ -50,7 +50,8 @@ case class Config(
   fakeS3Latency    : Long   =  0,      // fake s3 latency
   
   runToCompletion  : Boolean = false,  // don't exit, but wait for everything to complete
-  minSlaves        : Long    =  0      // minimum slaves to wait before we start work
+  minSlaves        : Long    =  0,     // minimum slaves to wait before we start work
+  debug            : Boolean = false 
 )
   
 class  ConfigMsg (c: Config) extends java.io.Serializable { val config = c }
@@ -78,8 +79,17 @@ object Main {
     
     processCmdLine(args)
 
-    val c = MyConfig.cl.get
+    val c = MyConfig.cl.get    
     
+    // set debug based on commandline
+    if (c.debug) {
+      log.warn("Setting debug mode")
+      LoggerFactory.getLogger("cosbench_ng")
+        .asInstanceOf[ch.qos.logback.classic.Logger]
+        .setLevel(Level.DEBUG)
+    }
+    
+    // set s3 credentials    
     val s3Cred =
         if (c.aidSkey._1 == "aid") // still the default value
           DefaultAWSCredentialsProviderChain.getInstance().getCredentials
@@ -90,21 +100,12 @@ object Main {
 
     // create a new config except for the access id
     MyConfig.cl = Some(Config(
-      c.bucketName,
-      c.cmd,
-      c.testTag,
-      c.opsRate,
-      c.maxOps,
-      c.objSize,
-      c.rangeReadStart,
-      c.rangeReadEnd,
-      c.endpoint,
-      c.region,
+      c.bucketName, c.cmd,
+      c.testTag, c.opsRate, c.maxOps, c.objSize,
+      c.rangeReadStart, c.rangeReadEnd, c.endpoint, c.region,
       aidSkey,
-      c.fakeS3Latency,
-      c.runToCompletion,
-      c.minSlaves))  
-    
+      c.fakeS3Latency, c.runToCompletion, c.minSlaves, c.debug))  
+        
     GetS3Client.get(MyConfig.cl.get)
       
     if (GetS3Client.test == false) {
@@ -137,7 +138,8 @@ object Main {
     println("Cosbench_ng master UP at: akka://system@%s:%d".format(hostName,portNumber))
     println("Status in log directory: %s".format(LogFile.directory) )
         
-    implicit val asystem = ActorSystem("system",config.getConfig("Master").withFallback(config))
+    implicit val asystem = ActorSystem("system",config.getConfig("Master").withFallback(config))    
+    
     implicit val timeout = Timeout(5.seconds)      
     val localReaper      = asystem.actorOf(Reaper.props,"Reaper") // to terminate at the end    
     val cluster          = Cluster.get(asystem)

@@ -107,7 +107,8 @@ class SlaveWorker extends Actor with ActorLogging {
       gConfig = 
         if (S3Ops.init(x.config))
           Some(x.config)
-        else {          
+        else {
+          log.debug("Config error. Shutting down")
           context.system.actorSelection("/user/Reaper") ! PoisonPill
           shutdown()
           None
@@ -182,7 +183,7 @@ class SlaveWorker extends Actor with ActorLogging {
           else
             opsWaitingToFinish.length
                     
-        log.warning("Slave has " + outstandingOps + " pending operations")
+        log.debug("Slave has " + outstandingOps + " pending operations")
       } 
       else shutdown()
       
@@ -220,16 +221,18 @@ class SlaveWorker extends Actor with ActorLogging {
   def shutdown () = {
     
     shutdownStatus = true
+    S3Ops.shutdown()
+    
     
     sender() ! StatList(accStatsList.toList)
     accStatsList = Nil      
     
     val fStat = finalStat()
 
-    log.warning("Slave shutting down")    
-    log.warning("Slave: s3Ops queued but not started            =  " + fStat.opsNStarted)    
-    log.warning("Slave: s3Ops started but not completed         =  " + fStat.opsStartedNCompleted)
-    log.warning("Slave: s3Ops completed but stats dropped       =  " + fStat.opsCompletedStatsNSent)
+    log.info("Slave shutting down")    
+    log.debug("Slave: s3Ops queued but not started            =  " + fStat.opsNStarted)    
+    log.debug("Slave: s3Ops started but not completed         =  " + fStat.opsStartedNCompleted)
+    log.debug("Slave: s3Ops completed but stats dropped       =  " + fStat.opsCompletedStatsNSent)
         
     log.debug("Slave: totalMsgsReceived,avgPendingPuts: " +
         debugStats.countMsgsReceived + ", " +
@@ -252,7 +255,6 @@ class Reaper extends Actor with ActorLogging {
   override def postStop = { 
     log.debug ("Reaper shutting down...")
 
-    S3Ops.shutdown()
     context.system.terminate()
   }
 }
