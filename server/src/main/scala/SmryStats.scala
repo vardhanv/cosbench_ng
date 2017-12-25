@@ -6,17 +6,7 @@ import java.nio.file.{ FileSystems, Files, StandardOpenOption }
 
 
 
-case class StatList (sl : List[Stats])
-
-class Stats() extends java.io.Serializable
-class GoodStat (val rspStarted: Double, val rspComplete: Double) extends Stats  //status = failed_op or successfull_op
-class BadStat() extends Stats
-class FinalStat(val opsStartedNCompleted: Int, val opsCompletedStatsNSent : Int, val opsNStarted : Int) extends Stats
 case class IntermediateStats (vSum_ : Double = 0, vSumSqr: Double = 0, count: Long =0, k: Option[Double] = None)
-
-object GoodStat  { def apply(rs: Double, rc: Double) = new GoodStat(rs,rc) }
-object FinalStat { def apply( r: Int, s: Int, t: Int) = new FinalStat(r,s,t) }
-object BadStat   { def apply() = new BadStat() } 
 
 
 case class Metric(average: Double = 0,

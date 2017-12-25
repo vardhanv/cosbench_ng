@@ -20,11 +20,14 @@ import ch.qos.logback.classic.Level
 object Remote  extends App {
 
    val log = LoggerFactory.getLogger(this.getClass)
-  
+   
+   println("hello")
+
   // parse the command line
   val cmd = CmdLineParser.parseCmdLine(args)
   if (cmd.isEmpty) System.exit(0)
-
+ 
+  
   // set debug based on commandline
   if (cmd.get.debug) {
     log.warn("Setting debug mode")

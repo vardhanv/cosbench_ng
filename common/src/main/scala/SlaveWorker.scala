@@ -1,12 +1,12 @@
 package cosbench_ng
 
 
-import akka.actor. { Actor, Props, ActorLogging , Status, ActorRef , Terminated, Cancellable, PoisonPill}
-
+import akka.actor. { Actor, Props, ActorLogging, Status, ActorRef, Terminated, Cancellable, PoisonPill}
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{ Failure, Success }
+
 
 
 

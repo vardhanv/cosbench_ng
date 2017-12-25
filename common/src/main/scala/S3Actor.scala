@@ -3,24 +3,16 @@ package cosbench_ng
 
 
 import org.slf4j.LoggerFactory
-
 import com.amazonaws.ClientConfiguration
 import com.amazonaws.services.s3.{ AmazonS3, AmazonS3ClientBuilder }
 import com.amazonaws.services.s3.model.{ GetObjectRequest, ObjectMetadata }
-
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration
 import com.amazonaws.auth.{ AWSStaticCredentialsProvider, BasicAWSCredentials}
-
-
 import java.util.concurrent.Executors
-
 import scala.concurrent.ExecutionContext
 import scala.util.{ Try, Failure, Success }
 import scala.concurrent.{Future, blocking}
-
-
 import java.io.InputStream
-
 import org.apache.http.conn.ssl.{SSLConnectionSocketFactory }
 import org.apache.http.ssl.{SSLContextBuilder, TrustStrategy}
 import javax.net.ssl.{HostnameVerifier, SSLSession}
