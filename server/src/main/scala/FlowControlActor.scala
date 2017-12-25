@@ -4,6 +4,7 @@ import akka.NotUsed
 import akka.actor.{ Actor, ActorLogging, Props, ActorRef, PoisonPill }
 
 import akka.cluster.ClusterEvent._
+import akka.cluster.Cluster
 
 import akka.stream.{ ActorMaterializer }
 import akka.stream.{ ThrottleMode }
@@ -128,6 +129,14 @@ class FlowControlActor extends Actor with ActorLogging {
             ClosedShape
       }))
     }
+    case x: UnreachableMember => { 
+      log.debug(x.toString())
+      log.warning("Removing " + x.member.uniqueAddress + " from this cluster, since it is unreachable")
+      Cluster.get(context.system).down(x.member.address)
+      Cluster.get(context.system).leave(x.member.address)
+
+    }
+    
     case x: Any => { log.debug("FlowControlActor received: " + x) }
   }
 }

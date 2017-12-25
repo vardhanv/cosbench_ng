@@ -1,4 +1,4 @@
-<!-- MASTER AND SLAVE -->
+<!-- SLAVE Only -->
 
 <configuration>
 
@@ -8,7 +8,7 @@
         <level>ERROR</level>
     </filter>
     <encoder>
-      <pattern>%d{HH:mm:ss.SSS} %-5level: %message%n</pattern>
+      <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} %message%n</pattern>
     </encoder>
   </appender>
 
@@ -24,7 +24,7 @@
     <file>   /tmp/cosbench_ng/debug-slave.log </file>
     <append> false </append>
     <encoder>
-      <pattern>%X{akkaTimestamp} %-5level %X{akkaSource}: %msg%n</pattern>
+      <pattern>%X{akkaTimestamp} %-5level %logger{36} %X{akkaSource}: %msg%n</pattern>
     </encoder>
   </appender>
   
@@ -32,21 +32,11 @@
    <appender-ref ref="WORKER-FILE" />
   </appender>
   
-
- <!--  FINAL RESULTS -->
-  <appender name="RESULTS-FILE" class="ch.qos.logback.core.FileAppender">
-    <file>   /tmp/cosbench_ng/results.csv </file>
-    <append> true </append>
-    <encoder> <pattern>%msg%n</pattern>    </encoder>
-  </appender>
   
-
-  <logger name="cosbench_ng" level="WARN" additivity="true"><appender-ref ref="WORKER-FILE-ASYNC"></appender-ref></logger>  
-  <logger name="akka"	     level="DEBUG" additivity="true"><appender-ref ref="WORKER-FILE-ASYNC"></appender-ref></logger>
+  <!--  Turning on/off logging of particular classes -->
+  <logger name="cosbench_ng"  level="WARN" additivity="true"><appender-ref ref="WORKER-FILE-ASYNC"></appender-ref></logger>  
+  <logger name="akka"	     level="WARN" additivity="true"><appender-ref ref="WORKER-FILE-ASYNC"></appender-ref></logger>
   
-  <!--  Results Only -->
-  <logger name="cosbench_ng.SmryStats" level="WARNING" additivity="true"><appender-ref ref="RESULTS-FILE"></appender-ref></logger>
-
   
   <root level="ERROR">
   	<appender-ref ref="CONSOLE"></appender-ref>

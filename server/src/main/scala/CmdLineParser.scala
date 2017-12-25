@@ -119,7 +119,10 @@ object CmdLineParser {
         .text("optional, object size in KB. default = 1")
 
       opt[Unit]('d', "debug")
-        .action((_, c) => c.copy(debug = true))
+        .action((_, c) => {
+          println("In debug mode")
+          c.copy(debug = true)
+        })
         .optional
         .text("optional, turn on debugging. Logs are in /tmp/cosbench_ng")
         

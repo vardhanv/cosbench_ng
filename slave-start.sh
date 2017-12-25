@@ -1,4 +1,7 @@
- #!/bin/bash
+#!/bin/bash
+set -euo pipefail
+IFS=$'\n\t'
+
 
 
 
@@ -29,7 +32,7 @@ elif [ "$1" == "--configure" ]; then
 fi
 
 
-source ./.cosbench_ng
+. ./.cosbench_ng
 
 if [ -z ${HOST_IP_ADDR} ]; then 
     echo "HOST_IP_ADDR needs to be set"; 
@@ -48,4 +51,4 @@ else
 fi
 
 
-docker run --shm-size 1G -v /tmp/t:/tmp -e HOST_PORT_NO -e HOST_IP_ADDR -p ${HOST_PORT_NO}:${HOST_PORT_NO}/udp  vardhanv/cosbench_ng-slave "$@"
+docker run --shm-size 1G -v /tmp/t:/tmp -e HOST_PORT_NO -e HOST_IP_ADDR -p ${HOST_PORT_NO}:${HOST_PORT_NO}/udp  vardhanv/cosbench_ng-slave " $@ "
