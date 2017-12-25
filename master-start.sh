@@ -66,5 +66,5 @@ echo "Using AWS_SECRET_ACCESS_KEY : $AWS_SECRET_ACCESS_KEY";
 echo "Using MY_TARGET             : $MY_TARGET"; 
 echo "Using HOST_IP_ADDR          : $HOST_IP_ADDR"; 
 
-docker run --shm-size 1G -v /tmp:/tmp -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e HOST_IP_ADDR -p 25521:25521/udp vardhanv/cosbench_ng "-e $MY_TARGET $@"
+docker run --shm-size 1G -v /tmp:/tmp -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e HOST_IP_ADDR -p 25521:25521/udp vardhanv/cosbench_ng -e $MY_TARGET "$@"
 
