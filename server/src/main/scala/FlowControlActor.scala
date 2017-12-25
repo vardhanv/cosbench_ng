@@ -44,10 +44,11 @@ class FlowControlActor extends Actor with ActorLogging {
   def receive = {
     case x: MemberUp =>
       totalSlaves += (if (x.member.roles.contains("slave")) 1 else 0)
-      println("Member " + x.member.uniqueAddress.address + " joined")
+      println("Member " + x.member.uniqueAddress.address + " joined. Waiting for " +
+        (MyConfig.cl.get.minSlaves - totalSlaves) + " more slaves ")
 
       if (MyConfig.cl.get.minSlaves == totalSlaves) {
-        println("All slaves are here. Starting test..")
+        println("All " + totalSlaves + " slaves are here. Starting test..")
 
         val runStartTime = System.nanoTime / 1000000
 
@@ -68,10 +69,6 @@ class FlowControlActor extends Actor with ActorLogging {
             context.actorSelection("/user/Reaper") ! PoisonPill
             
         })
-      } else if (MyConfig.cl.get.minSlaves > totalSlaves){
-        println("Waiting for " + 
-                 (MyConfig.cl.get.minSlaves - totalSlaves) + " more slave/slaves."
-                 + " Total slaves = " + totalSlaves)
       } 
 
     case lr: ActorRef => {
@@ -137,6 +134,7 @@ class FlowControlActor extends Actor with ActorLogging {
 
     }
     
-    case x: Any => { log.debug("FlowControlActor received: " + x) }
+    
+    case x: Any => { log.error("FlowControlActor received: " + x) }
   }
 }

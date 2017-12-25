@@ -17,7 +17,7 @@ import ch.qos.logback.classic.Level
 
 
 object MyConfig {
-  val config = ConfigFactory.load().getConfig("Master.Cosbench_ng")
+  val config = ConfigFactory.load().getConfig("Cosbench_ng.common")
   var cl: Option[Config]           = None // parsed command line
   var rawCl: Option[Array[String]] = None // raw cmd line
   

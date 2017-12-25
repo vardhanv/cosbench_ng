@@ -88,9 +88,10 @@ object Main {
       log.error("too many seed nodes in config file")
       System.exit(1)
     }
-    
-    println("Cosbench_ng master UP at: akka://system@%s:%d".format(hostName,portNumber))
-    println("Status in log directory: %s".format(LogFile.directory) )
+
+    println("Status in log directory  : %s".format(LogFile.directory) )    
+    println("Cosbench_ng master UP at : akka://system@%s:%d".format(hostName,portNumber))
+
         
     implicit val asystem = ActorSystem("system",config.getConfig("Master").withFallback(config))    
     

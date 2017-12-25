@@ -21,8 +21,6 @@ object Remote  extends App {
 
    val log = LoggerFactory.getLogger(this.getClass)
    
-   println("hello")
-
   // parse the command line
   val cmd = CmdLineParser.parseCmdLine(args)
   if (cmd.isEmpty) System.exit(0)
