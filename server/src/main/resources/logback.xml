@@ -2,15 +2,6 @@
 
 <configuration>
 
-  <!--  Appender to filter out messages to console -->
-  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-    <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
-        <level>ERROR</level>
-    </filter>
-    <encoder>
-      <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} %message%n</pattern>
-    </encoder>
-  </appender>
 
   <timestamp key="bySecond" datePattern="yyyyMMdd'T'HHmmss"/>
   
@@ -38,9 +29,22 @@
   <logger name="akka"	     level="WARN" additivity="true"><appender-ref ref="WORKER-FILE-ASYNC"></appender-ref></logger>
   
   
+  
+  <!--  Appender to filter out error messages to console   -->
+  <!--   
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+        <level>ERROR</level>
+    </filter>
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} %message%n</pattern>
+    </encoder>
+  </appender>
+
+  
   <root level="ERROR">
   	<appender-ref ref="CONSOLE"></appender-ref>
   </root>
-  
+   -->
   
 </configuration>

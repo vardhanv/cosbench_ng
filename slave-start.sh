@@ -21,14 +21,22 @@ create_config_file() {
 }
 
 
-if [ $# -eq 0 ]; then
-   echo "Run $0 --configure to configure your environment"
-   echo "Run $0 --help to see help instructions for cosbench_ng slave"
+print_help() {
+   echo "First $0 --configure to configure your environment"
+   echo "then  $0 --help to see help instructions for cosbench_ng slave"
    echo "Be aware that this is only a wraper script that helps setup the environment and runs the underlying docker container"
+}
+
+
+if [ $# -eq 0 ]; then
+   print_help
    exit 1
 elif [ "$1" == "--configure" ]; then
    create_config_file
    exit 0
+elif [ ! -f ./.cosbench_ng ]; then
+   print_help
+   exit 1
 fi
 
 
@@ -52,5 +60,5 @@ fi
 
 while true
 do
-   docker run --shm-size 1G -v /tmp:/tmp -e HOST_PORT_NO -e HOST_IP_ADDR -p ${HOST_PORT_NO}:${HOST_PORT_NO}/udp  vardhanv/cosbench_ng-slave "$@"
+   docker run --shm-size 1G -v /tmp:/tmp -e HOST_PORT_NO -e HOST_IP_ADDR -p ${HOST_PORT_NO}:${HOST_PORT_NO}/udp  vardhanv/cosbench_ng-slave:0.9 "$@"
 done

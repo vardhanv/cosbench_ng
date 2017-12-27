@@ -3,6 +3,14 @@ set -euo pipefail
 IFS=$'\n\t'
 
 
+read -e -p "Have you already done an ssh-add for your pem file? (y/n): " SSH_ADD
+
+if [ ! $SSH_ADD == 'y' ]; then
+   echo "First do an ssh-add, otherwise docker setup will fail"
+   exit 1
+fi
+
+
 echo "logs in /tmp/aws-env-startup.log"
 echo --------- `Date` -------- >> /tmp/aws-env-startup.log
 echo "Spinning up instances"
@@ -37,10 +45,11 @@ cat /tmp/all-hosts   | cut -d ',' -f2 >  /tmp/all-hosts-dns
 cat /tmp/slave-hosts | cut -d ',' -f2 > ./slave-hosts-dns
 cat /tmp/master-host | cut -d ',' -f2 > ./master-host-dns
 
-echo "Installing docker on all the hosts"
+echo "Installing docker on all the hosts..."
 pssh -o /tmp -h /tmp/all-hosts-dns -i -I  << EOF 1>>/tmp/aws-env-startup.log
-DEBIAN_FRONTEND=noninteractive nohup sudo apt-get update
-DEBIAN_FRONTEND=noninteractive nohup sudo apt-get -y install docker.io
+export DEBIAN_FRONTEND=noninteractive
+DEBIAN_FRONTEND=noninteractive sudo apt-get update
+DEBIAN_FRONTEND=noninteractive sudo apt-get -y install docker.io
 sudo usermod -aG docker \$USER
 EOF
 

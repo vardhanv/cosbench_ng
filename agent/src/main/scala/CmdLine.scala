@@ -43,7 +43,7 @@ object CmdLineParser {
         .action((x, c) => c.copy(master = Some(x)))
         .text("\"akka://master_ip:port\". See master console for text with \"Cosbench_ng master UP at: akka://\" ")
 
-      opt[Unit]('d', "debug")
+      opt[Unit]('u', "debug")
         .action((_, c) => c.copy(debug = true))
         .optional
         .text("optional, turn on debugging. Logs are in /tmp/cosbench_ng")

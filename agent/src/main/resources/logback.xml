@@ -2,7 +2,34 @@
 
 <configuration>
 
-  <!--  Appender to filter out messages to console -->
+  <timestamp key="bySecond" datePattern="yyyyMMdd'T'HHmmss"/>
+  
+  
+  <!--  TODO: Split the log file, one for master and one for slave -->
+  <!--  TODO: configure logback.xml so that we can build and deploy  without using identical logback.xmls -->
+  
+  <!-- WORKER  -->
+
+  <appender name="LOG-FILE" class="ch.qos.logback.core.FileAppender">
+    <file>   /tmp/cosbench_ng/debug-slave.log </file>
+    <append> false </append>
+    <encoder>
+      <pattern>%X{akkaTimestamp} %-5level %logger{36} %X{akkaSource}: %msg%n</pattern>
+    </encoder>
+  </appender>
+  
+  <appender name="LOG-FILE-ASYNC" class="ch.qos.logback.classic.AsyncAppender">
+   <appender-ref ref="LOG-FILE" />
+  </appender>
+  
+  
+  <!--  Turning on/off logging of particular classes -->
+  <logger name="cosbench_ng"  level="WARN" additivity="true"><appender-ref ref="LOG-FILE-ASYNC"></appender-ref></logger>  
+  <logger name="akka"	     level="WARN" additivity="true"><appender-ref ref="LOG-FILE-ASYNC"></appender-ref></logger>
+  
+  
+  <!--  Appender to filter out error messages to console   -->
+  <!--   
   <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
     <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
         <level>ERROR</level>
@@ -12,35 +39,11 @@
     </encoder>
   </appender>
 
-  <timestamp key="bySecond" datePattern="yyyyMMdd'T'HHmmss"/>
-  
-  
-  <!--  TODO: Split the log file, one for master and one for slave -->
-  <!--  TODO: configure logback.xml so that we can build and deploy  without using identical logback.xmls -->
-  
-  <!-- WORKER  -->
-
-  <appender name="WORKER-FILE" class="ch.qos.logback.core.FileAppender">
-    <file>   /tmp/cosbench_ng/debug-slave.log </file>
-    <append> false </append>
-    <encoder>
-      <pattern>%X{akkaTimestamp} %-5level %logger{36} %X{akkaSource}: %msg%n</pattern>
-    </encoder>
-  </appender>
-  
-  <appender name="WORKER-FILE-ASYNC" class="ch.qos.logback.classic.AsyncAppender">
-   <appender-ref ref="WORKER-FILE" />
-  </appender>
-  
-  
-  <!--  Turning on/off logging of particular classes -->
-  <logger name="cosbench_ng"  level="WARN" additivity="true"><appender-ref ref="WORKER-FILE-ASYNC"></appender-ref></logger>  
-  <logger name="akka"	     level="WARN" additivity="true"><appender-ref ref="WORKER-FILE-ASYNC"></appender-ref></logger>
-  
   
   <root level="ERROR">
   	<appender-ref ref="CONSOLE"></appender-ref>
   </root>
-  
+   -->
+ 
   
 </configuration>

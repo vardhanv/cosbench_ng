@@ -131,10 +131,11 @@ class FlowControlActor extends Actor with ActorLogging {
       log.warning("Removing " + x.member.uniqueAddress + " from this cluster, since it is unreachable")
       Cluster.get(context.system).down(x.member.address)
       Cluster.get(context.system).leave(x.member.address)
-
     }
-    
-    
-    case x: Any => { log.error("FlowControlActor received: " + x) }
+    case x: MemberLeft    =>  {  log.warning(x.toString)  }
+    case x: MemberExited  =>  {  log.warning(x.toString)  }
+    case x: MemberRemoved =>  {  log.warning(x.toString)  }
+    case x: MemberJoined  =>  {  log.debug(x.toString)  }
+    case x: Any           =>  {  log.error(x.toString) }
   }
 }

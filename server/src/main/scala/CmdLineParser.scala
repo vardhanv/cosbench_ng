@@ -118,7 +118,7 @@ object CmdLineParser {
         .optional
         .text("optional, object size in KB. default = 1")
 
-      opt[Unit]('d', "debug")
+      opt[Unit]('u', "debug")
         .action((_, c) => {
           println("In debug mode")
           c.copy(debug = true)

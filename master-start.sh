@@ -24,14 +24,22 @@ IFS=$'\n\t'
  }
 
 
-if [ $# -eq 0 ]; then
-   echo "Run $0 --configure to configure your environment"
-   echo "Run $0 --help to see help instructions for cosbench_ng"
+print_help() {
+   echo "First $0 --configure to configure your environment"
+   echo "then  $0 --help to see help instructions for cosbench_ng"
    echo "Be aware that this is only a wraper script that helps setup the environment and runs the underlying docker container"
+}
+
+
+if [ $# -eq 0 ]; then
+   print_help
    exit 1
 elif [ "$1" == "--configure" ]; then
    create_config_file
    exit 0 
+elif [ ! -f ./.cosbench_ng ]; then
+   print_help
+   exit 1
 fi
 
 
@@ -66,5 +74,5 @@ echo "Using AWS_SECRET_ACCESS_KEY : $AWS_SECRET_ACCESS_KEY";
 echo "Using MY_TARGET             : $MY_TARGET"; 
 echo "Using HOST_IP_ADDR          : $HOST_IP_ADDR"; 
 
-docker run --shm-size 1G -v /tmp:/tmp -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e HOST_IP_ADDR -p 25521:25521/udp vardhanv/cosbench_ng -e $MY_TARGET "$@"
+docker run --shm-size 1G -v /tmp:/tmp -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e HOST_IP_ADDR -p 25521:25521/udp vardhanv/cosbench_ng:0.9 -e $MY_TARGET "$@"
 

@@ -122,80 +122,92 @@ object S3Ops {
 
               
    // S3 client with retries disabled
-   private lazy val s3Client = GetS3Client.get(config.get)
+  private lazy val s3Client = GetS3Client.get(config.get)
 
-    
-  def put(bucketName: String, objName:String)  =
-    Future {
-      blocking {
-        Try {
-          val totalTime = {
-            val startTime = System.nanoTime / 1000000
-            
-            //val byteArray : ByteArrayInputStream = new ByteArrayInputStream(s3Buffer)
-            val omd = new ObjectMetadata()
-            omd.setContentLength(config.get.objSize*1024)
-              
-            if (config.get.fakeS3Latency > 0)
-              Thread.sleep(config.get.fakeS3Latency) //fake s3
-            else
-              s3Client.putObject(bucketName, objName, byteStream(config.get.objSize*1024) , omd)
-            
-            
-            (System.nanoTime() / 1000000) - startTime
-          }
-          totalTime
-        } match {
-          case Success(v) => GoodStat(v, v)
-          case Failure(e) => 
-            log.warn("Bucket: " + bucketName + ", object: " + objName + ", " + e.toString()) 
-            BadStat()
-        }
-      }
-    }(S3Ops.blockingEC)
+  def put(bucketName: String, objName: String) =
+    Try {
+      Future {
+        blocking {
+          Try {
+            val totalTime = {
+              val startTime = System.nanoTime / 1000000
 
-    
-  def get(bucketName: String, objName:String)  =
-    Future {
-      blocking {
-        Try {
-          val buffer : Array[Byte] = Array.ofDim(9126)
+              //val byteArray : ByteArrayInputStream = new ByteArrayInputStream(s3Buffer)
+              val omd = new ObjectMetadata()
+              omd.setContentLength(config.get.objSize * 1024)
 
-          val startTime = System.nanoTime / 1000000
-          val getObjReq = new GetObjectRequest(bucketName, objName)
-          
-          // if range read is used
-          if (config.get.rangeReadStart > -1)
-            getObjReq.setRange(config.get.rangeReadStart, config.get.rangeReadEnd)
+              if (config.get.fakeS3Latency > 0)
+                Thread.sleep(config.get.fakeS3Latency) //fake s3
+              else
+                s3Client.putObject(bucketName, objName, byteStream(config.get.objSize * 1024), omd)
 
-          val (receivedTime, completeTime) =
-            if (config.get.fakeS3Latency > 0) { //fake s3
-              Thread.sleep(config.get.fakeS3Latency) 
-              val t = (System.nanoTime() / 1000000)
-              (t, t)
-            } else { // real s3
-
-              val s3Obj = s3Client.getObject(getObjReq)
-              val rt = (System.nanoTime() / 1000000)
-              val stream = s3Obj.getObjectContent
-
-              while (s3Obj.getObjectContent.read(buffer) != -1) {}
-              val ct = (System.nanoTime() / 1000000)
-
-              stream.close()
-              s3Obj.close()
-              (rt, ct)
+              (System.nanoTime() / 1000000) - startTime
             }
-
-          (receivedTime - startTime, completeTime - startTime) //(rspTime, totalTime)
-        } match {
-          case Success(v) => GoodStat(v._1, v._2)
-          case Failure(e) => 
-            log.warn("Bucket: " + bucketName + ", object: " + objName + ", " + e.toString) 
-            BadStat()
+            GoodStat(totalTime, totalTime)
+          } match {
+            case Success(v) => v
+            case Failure(e) => 
+               log.warn("PUT Failed - Bucket: " + bucketName + ", object: " + objName + ", " + e)
+               BadStat()
+          }
         }
-      }
-    }(S3Ops.blockingEC)
+      }(S3Ops.blockingEC)
+    } match {
+      case Success(v) => v
+      case Failure(e) =>
+         log.warn("PUT Execution Failed - Bucket: " + bucketName + ", object: " + objName + ", " + e)
+         Future.successful(BadStat())
+    }
+
+  def get(bucketName: String, objName: String) =
+    Try {
+      Future {
+        blocking {
+          Try {
+            val buffer: Array[Byte] = Array.ofDim(9126)
+
+            val startTime = System.nanoTime / 1000000
+            val getObjReq = new GetObjectRequest(bucketName, objName)
+
+            // if range read is used
+            if (config.get.rangeReadStart > -1)
+              getObjReq.setRange(config.get.rangeReadStart, config.get.rangeReadEnd)
+
+            val (receivedTime, completeTime) =
+              if (config.get.fakeS3Latency > 0) { //fake s3
+                Thread.sleep(config.get.fakeS3Latency)
+                val t = (System.nanoTime() / 1000000)
+                (t, t)
+              } else { // real s3
+
+                val s3Obj = s3Client.getObject(getObjReq)
+                val rt = (System.nanoTime() / 1000000)
+                val stream = s3Obj.getObjectContent
+
+                while (s3Obj.getObjectContent.read(buffer) != -1) {}
+                val ct = (System.nanoTime() / 1000000)
+
+                stream.close()
+                s3Obj.close()
+                (rt, ct)
+              }
+
+            GoodStat(receivedTime - startTime, completeTime - startTime) //(rspTime, totalTime)
+          } match {
+            case Success(v) => v
+            case Failure(e) => 
+               log.warn("GET Failed - Bucket: " + bucketName + ", object: " + objName + ", " + e)
+               BadStat()
+          }
+        }
+      }(S3Ops.blockingEC)
+    } match {
+      case Success(v) => v
+      case Failure(e) =>
+         log.warn("GET Execution Failed - Bucket: " + bucketName + ", object: " + objName + ", " + e)
+         Future.successful(BadStat())
+    }
+    
     
   
   def shutdown() = {

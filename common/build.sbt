@@ -1,6 +1,6 @@
 name := """cosbench_ng-common"""
 
-version := "0.8"
+version := "0.9"
 
 // Docker specific configuration
 enablePlugins(JavaAppPackaging)
