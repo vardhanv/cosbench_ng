@@ -22,17 +22,17 @@ object Remote  extends App {
    val log = LoggerFactory.getLogger(this.getClass)
    
   // parse the command line
-  val cmd = CmdLineParser.parseCmdLine(args)
-  if (cmd.isEmpty) System.exit(0)
+  val c = CmdLineParser.parseCmdLine(args)
+  if (c.isEmpty) System.exit(0)
  
   
-  // set debug based on commandline
-  if (cmd.get.debug) {
-    log.warn("Setting debug mode")
-    LoggerFactory.getLogger("cosbench_ng")
-      .asInstanceOf[ch.qos.logback.classic.Logger]
-      .setLevel(Level.DEBUG)
-  }
+    // set debug based on commandline
+    if (c.get.localDebug > 0) {
+      val l = if (c.get.localDebug == 1) Level.INFO else Level.DEBUG
+      LoggerFactory.getLogger("cosbench_ng")
+        .asInstanceOf[ch.qos.logback.classic.Logger]
+        .setLevel(l)
+    }
 
   
   val (hostName,bindHostname) = 
@@ -49,7 +49,7 @@ object Remote  extends App {
         Slave.akka.remote.artery.bind.hostname = "%s"
         Slave.akka.remote.artery.bind.port     = "%s"
         Slave.akka.cluster.seed-nodes = ["%s"]
-        """.stripMargin, hostName, portNumber, bindHostname, portNumber, cmd.get.master.get))
+        """.stripMargin, hostName, portNumber, bindHostname, portNumber, c.get.master.get))
         
 
 
@@ -64,7 +64,7 @@ object Remote  extends App {
   val cluster = Cluster.get(system)
 
   println("Slave is up at: " + cluster.selfUniqueAddress.address) 
-  println("Connecting to master: " + cmd.get.master.get)  
+  println("Connecting to master: " + c.get.master.get)  
   
   cluster.subscribe(system.actorOf(MyClusterMonitor.props(config)),
       ClusterEvent.initialStateAsEvents,  

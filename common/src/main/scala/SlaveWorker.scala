@@ -98,7 +98,7 @@ class SlaveWorker extends Actor with ActorLogging {
           opsWaitingToStart = generateLoad(opsWaitingToStart)  // generate a load
 
                 
-        log.info("currLoad: x=(%6d,%6d), opsWaitingToFinish = %4d, maxPendingOps = %4d, avgLatency = %4d".format(
+        log.info("currLoad: Cmd=(%6d,%6d), opsWaitingToFinish = %4d, maxPendingOps = %4d, avgLatency = %4d".format(
          x.start,x.end,opsWaitingToFinish.length,maxPendingOps,avgLatency.toLong))
                                   
     case x: ConfigMsg => 
@@ -120,46 +120,48 @@ class SlaveWorker extends Actor with ActorLogging {
       }
             
          
-    case S3OpsFlush() => 
-            
-      val completedOps   = opsWaitingToFinish.filter {_.isCompleted }
-      opsWaitingToFinish = opsWaitingToFinish.filter {_.isCompleted == false }
+    case S3OpsFlush() =>
 
-      // update stats to update maxPendingPuts
-      
-      val statList = completedOps.map( f => f.value.get match {
-        case Success(y: Stats) => y
-        case Failure(e) => log.error("received unexpexted bad stat"); require(false); BadStat()
-      })
-                  
-      statList.map { 
-        case y: GoodStat =>
-          avgLatency = (avgLatency * totalOps + y.rspComplete) / (totalOps + 1)
-          totalOps += 1
-        case _: Any => {}  
-      }
+      if (gConfig.isDefined) {
 
-      // append newly completed stats to the existing list
-      accStatsList = statList ::: accStatsList
-      
-      //log.debug("S3OpsFlush: current completed stats: %d, stats waiting to be flushed: %d".format(statList.length,accStatsList.length))
-      
-      //adjust maxPendingOps
-      val oldMaxPendingOps = maxPendingOps
-      maxPendingOps = calcMaxPendingOps()
+        val completedOps = opsWaitingToFinish.filter { _.isCompleted }
+        opsWaitingToFinish = opsWaitingToFinish.filter { _.isCompleted == false }
 
-      if (oldMaxPendingOps != maxPendingOps)
-        log.debug("adjusting maxPendingOps from " + oldMaxPendingOps + " to " + maxPendingOps)
-        
-      // generate load
-      opsWaitingToStart = generateLoad(opsWaitingToStart)
+        // update stats to update maxPendingPuts
 
-      
-      // TODO change length to suit large file and small file workloads
-      if (accStatsList.length > 50) {     
-        log.debug("sending %d stats to router".format(accStatsList.length))
-        mostRecentRouterAddress.map { x => x ! StatList(accStatsList.toList) }                
-        accStatsList = Nil
+        val statList = completedOps.map(f => f.value.get match {
+          case Success(y: Stats) => y
+          case Failure(e) => log.error("received unexpexted bad stat"); require(false); BadStat()
+        })
+
+        statList.map {
+          case y: GoodStat =>
+            avgLatency = (avgLatency * totalOps + y.rspComplete) / (totalOps + 1)
+            totalOps += 1
+          case _: Any => {}
+        }
+
+        // append newly completed stats to the existing list
+        accStatsList = statList ::: accStatsList
+
+        //log.debug("S3OpsFlush: current completed stats: %d, stats waiting to be flushed: %d".format(statList.length,accStatsList.length))
+
+        //adjust maxPendingOps
+        val oldMaxPendingOps = maxPendingOps
+        maxPendingOps = calcMaxPendingOps()
+
+        if (oldMaxPendingOps != maxPendingOps)
+          log.debug("adjusting maxPendingOps from " + oldMaxPendingOps + " to " + maxPendingOps)
+
+        // generate load
+        opsWaitingToStart = generateLoad(opsWaitingToStart)
+
+        // TODO change length to suit large file and small file workloads
+        if (accStatsList.length > 50) {
+          log.debug("sending %d stats to router".format(accStatsList.length))
+          mostRecentRouterAddress.map { x => x ! StatList(accStatsList.toList) }
+          accStatsList = Nil
+        }
       }
       
 
@@ -174,8 +176,14 @@ class SlaveWorker extends Actor with ActorLogging {
     case x: SlaveWorker.StopS3Actor =>
       log.debug("SlaveWorker.StopS3Actor Recived")
       
-      if (gConfig.isDefined && gConfig.get.runToCompletion && opsWaitingToFinish.length > 0 ) {
-        sender ! "Slave Not Done"
+      if (gConfig.isEmpty) {
+        sender() ! "Slave Not Done"
+        sender() ! "Slave is not configured" // ask for config
+        log.info("Slave requesting configuration from %s".format(sender().toString()))
+      } else if ( gConfig.get.runToCompletion && (opsWaitingToFinish.length > 0  || opsWaitingToStart.length > 0) ) {
+        
+        sender ! "Slave Not Done"        
+        opsWaitingToStart = generateLoad(opsWaitingToStart)  // generate a load
         
         val outstandingOps = 
           if (opsWaitingToStart.length > 0 )
@@ -183,9 +191,15 @@ class SlaveWorker extends Actor with ActorLogging {
           else
             opsWaitingToFinish.length
                     
-        log.debug("Slave has " + outstandingOps + " pending operations")
+        log.debug("Slave not done")
+        log.debug("Slave has %d pending operations. %d waitingToStart, %d WaitingToFinish"
+            .format(outstandingOps, opsWaitingToStart.length ,opsWaitingToFinish.length))
       } 
-      else shutdown()
+      else {        
+        log.debug("Going to shutdown: gConfig: %b, WaitingToFinish = %d, WaitingToStart = %d"
+            .format(gConfig.isDefined,opsWaitingToFinish.length,opsWaitingToStart.length))
+        shutdown()
+      }
       
     
       

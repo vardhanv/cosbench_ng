@@ -20,6 +20,7 @@ object CmdLineParser {
         .text("target s3 bucket")
 
       opt[String]('c', "cmd")
+        .valueName("<PUT/GET>")
         .required()
         .action((x, c) => c.copy(cmd = x))
         .validate({
@@ -50,6 +51,7 @@ object CmdLineParser {
         .text("execute s3 operations at a rate of \"opsRate\"/sec. ")
 
       opt[String]('e', "ep-url")
+         .valueName("<url>")
         .action((x, c) => c.copy(endpoint = x))
         .optional()
         .text("optional, endpoint. default = https://s3.amazonaws.com")
@@ -59,17 +61,29 @@ object CmdLineParser {
         .optional
         .text("optional, changes how we terminate and forces completion of all s3Ops")
 
-      opt[(Int, Int)]('g', "rangeRead")
-        .action({ case ((k, v), c) => c.copy(rangeReadStart = k, rangeReadEnd = v) })
-        .validate({
+      opt[Map[String, Int]]('g', "range-read")
+        .valueName("<start=v1,end=v2>")
+        .action( (x,c) => { 
+          c.copy(rangeReadStart = x("start"))
+           .copy(rangeReadEnd   = x("end"))
+        })
+        .validate( x => {
+          if(x.keySet.count(_ => true) != 2 
+              || x.keySet.contains("start") == false 
+              || x.keySet.contains("end")   == false 
+              || x("end") < x("start"))
+            failure("Invalid range-read values")
+            else success
+          /*
           case (k, v) =>
             if (k > 0 && v > 0 && k < v) { success }
-            else failure("Invalid range read values %d,%d".format(k, v))
+            else failure("Invalid range read values %d,%d".format(k, v))*/
         })
         .optional
-        .text("optional, read from a sepcific offset to a particular offset. example (-g:200=400)")
+        .text("optional, range-read. Example (-g:start=200,end=400), all values in bytes")
 
       opt[Int]('k', "fakeS3")
+        .valueName("<milliseconds>")
         .action((x, c) => c.copy(fakeS3Latency = x))
         .optional
         .text("optional, fake s3 with 'value' ms of fake latency")
@@ -98,7 +112,7 @@ object CmdLineParser {
         *
         */
 
-      opt[String]('g', "region")
+      opt[String]('i', "region")
         .action((x, c) => c.copy(region = x))
         .optional()
         .text("optional, s3 region. default = us-east-1")
@@ -118,13 +132,15 @@ object CmdLineParser {
         .optional
         .text("optional, object size in KB. default = 1")
 
-      opt[Unit]('u', "debug")
-        .action((_, c) => {
-          println("In debug mode")
-          c.copy(debug = true)
-        })
+      opt[Int]('u', "debug")
+        .action((x, c) => c.copy(debug = x))
+        .validate({
+          case (x) =>
+            if (x != 1 && x != 2) failure("debug value has to be 1 or 2")
+            else success
+        })          
         .optional
-        .text("optional, turn on debugging. Logs are in /tmp/cosbench_ng")
+        .text("optional, turn on debugging (1: info, 2: debug)")
         
         
       help("help").text("prints help text")
@@ -134,7 +150,9 @@ object CmdLineParser {
           failure("rangeReadEnd has to be greater than or equal to rangeReadStart")
         } else if (c.maxOps < c.opsRate) {
           failure("maxOps has to be greater than opsRate")
-        } else success )
+        } else if (c.rangeReadStart > -1  && c.cmd == "PUT") // TODO: Needs better handling
+          failure("cannot specify PUT and do a range-read") 
+        else success )
         
     }
 

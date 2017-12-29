@@ -93,9 +93,10 @@ class SmryStats (
     
     val count = rspStart.inter.count
     val stdDeviation = rspStart.stdDeviation.toLong
-    val objRate = count/(runTime/1000)
+    val objRate = count.toFloat/(runTime/1000)
     
-    println("------")
+    println()
+    println("---------------")
     println("Test Complete (results logged in %s):".format(LogFile.directory))
     println ("TTFB (avg,min,max,std)              : (" +  rspStart.average.toLong 
         +  "," + rspStart.min.toLong + "," + rspStart.max.toLong 
@@ -107,17 +108,19 @@ class SmryStats (
         + rspEnd.stdDeviation.toLong +") ms" );
 
     println ("No of ops  (Target, Actual)         : (" + MyConfig.cl.get.maxOps + "," + count +")")    
-    println ("Ops/second (Target, Actual)         : (" + MyConfig.cl.get.opsRate +"," + objRate +")")
+    println ("Ops/second (Target, Actual)         : (%d,%4.2f)".format(MyConfig.cl.get.opsRate, objRate))
     println ("Throughput(KB)/sec (Target, Actual) : (%4.2f,%4.2f) MB/s".format(
         MyConfig.cl.get.opsRate.toFloat*MyConfig.cl.get.objSize.toFloat/1024, 
         objRate.toFloat*MyConfig.cl.get.objSize.toFloat/1024))
         
     println ("Run time                            : " + runTime/1000 + " seconds")
-    println("Expected Errors:")
-    println ("+ ops - failed                      : +" + failed.toLong)
+    println("Known Errors:")
     println ("+ ops - queued but not started      : +" + opsNStarted.toLong)
     println ("+ ops - started but not completed   : +" + opsStartedNCompleted.toLong)
     println ("+ ops - completed but stats dropped : +" + opsCompletedStatsNSent.toLong)
+
+    println("Unknown Errors:")
+    println ("+ ops - failed                      : +" + failed.toLong)
     println ("+ ops - Unaccounted / Unacknowledged: +" + (MyConfig.cl.get.maxOps - 
                                                             (count + failed.toLong + 
                                                             opsNStarted.toLong + 
@@ -125,13 +128,14 @@ class SmryStats (
                                                             opsCompletedStatsNSent.toLong)))
 
                                                             
+                                                            
     val logHeader : String = "tag,time,cmd,objSize(KB),endpoint,rangeRead,targetOps,actualOps," +
                       "targetOpsRate,actualOpsRate,ttFb(avg),ttFb(min)," +
                       "ttFb(max),ttFb(SD),ttLb(avg),ttLb(min),ttLb(max)," +
                       "ttLb(SD),targetThroughput,actualThroughput,runTime(ms),cmdLine\n"
 
         
-    val logOutput = "%s,%s,%s,%d,%s,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%4.2f,%4.2f,%d,%s\n".format(
+    val logOutput = "%s,%s,%s,%d,%s,%d,%d,%d,%d,%4.2f,%d,%d,%d,%d,%d,%d,%d,%d,%4.2f,%4.2f,%d,%s\n".format(
         MyConfig.cl.get.testTag,
         new Date(System.currentTimeMillis()),
         MyConfig.cl.get.cmd,

@@ -84,7 +84,7 @@ class MyRouter  extends Actor with ActorLogging {
       
     case msg: MyCmd =>
       // forward to slaves and wait for a response 
-      log.info("router received: command(%d,%d). Routing to slaves.".format(msg.start,msg.end))
+      log.debug("router received: command(%d,%d). Routing to slaves.".format(msg.start,msg.end))
       routerA ! (ConsistentHashableEnvelope(msg, msg)) 
       
       sender ! "ack"

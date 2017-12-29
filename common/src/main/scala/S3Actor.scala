@@ -8,7 +8,11 @@ import com.amazonaws.services.s3.{ AmazonS3, AmazonS3ClientBuilder }
 import com.amazonaws.services.s3.model.{ GetObjectRequest, ObjectMetadata }
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration
 import com.amazonaws.auth.{ AWSStaticCredentialsProvider, BasicAWSCredentials}
+
 import java.util.concurrent.Executors
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+
 import scala.concurrent.ExecutionContext
 import scala.util.{ Try, Failure, Success }
 import scala.concurrent.{Future, blocking}
@@ -104,7 +108,6 @@ case class S3OpsFlush()
 
 object S3Ops {
   
-   val s3Buffer : Array[Byte] = Array.ofDim(1024)      
    lazy val executors  = Executors.newFixedThreadPool(MyConfig.maxThreads)
    lazy val blockingEC = ExecutionContext.fromExecutor(executors)  
    val log = LoggerFactory.getLogger(this.getClass)
@@ -132,7 +135,6 @@ object S3Ops {
             val totalTime = {
               val startTime = System.nanoTime / 1000000
 
-              //val byteArray : ByteArrayInputStream = new ByteArrayInputStream(s3Buffer)
               val omd = new ObjectMetadata()
               omd.setContentLength(config.get.objSize * 1024)
 
@@ -164,15 +166,21 @@ object S3Ops {
       Future {
         blocking {
           Try {
-            val buffer: Array[Byte] = Array.ofDim(9126)
+            var buffer: Array[Byte] = Array.ofDim(9126)
 
             val startTime = System.nanoTime / 1000000
             val getObjReq = new GetObjectRequest(bucketName, objName)
+            var totalBytesRead =  0
 
-            // if range read is used
-            if (config.get.rangeReadStart > -1)
-              getObjReq.setRange(config.get.rangeReadStart, config.get.rangeReadEnd)
+            //if range read is used
+            val expectedBytes =
+              if (config.get.rangeReadStart > -1) {
+                getObjReq.setRange(config.get.rangeReadStart, config.get.rangeReadEnd)
+                config.get.rangeReadEnd - config.get.rangeReadStart + 1
+              } else
+                1024 * config.get.objSize
 
+              
             val (receivedTime, completeTime) =
               if (config.get.fakeS3Latency > 0) { //fake s3
                 Thread.sleep(config.get.fakeS3Latency)
@@ -181,10 +189,19 @@ object S3Ops {
               } else { // real s3
 
                 val s3Obj = s3Client.getObject(getObjReq)
-                val rt = (System.nanoTime() / 1000000)
                 val stream = s3Obj.getObjectContent
 
-                while (s3Obj.getObjectContent.read(buffer) != -1) {}
+                val firstByte = stream.read()
+                var bytesRead = if (firstByte >=0 ) 1 else 0 // stream.read returns the byte, not the number of bytes read.                
+
+                // time to first byte                
+                val rt = (System.nanoTime() / 1000000)
+
+                while(bytesRead >= 0) {          
+                  totalBytesRead = bytesRead + totalBytesRead                                                      
+                  bytesRead = stream.read(buffer)                  
+                }                                
+                                                   
                 val ct = (System.nanoTime() / 1000000)
 
                 stream.close()
@@ -192,7 +209,12 @@ object S3Ops {
                 (rt, ct)
               }
 
-            GoodStat(receivedTime - startTime, completeTime - startTime) //(rspTime, totalTime)
+            if (totalBytesRead != expectedBytes) {
+              log.error("unexpected object size read.  Got: %d bytes, Expected %d bytes".format(totalBytesRead, expectedBytes))
+              BadStat() // return bad stat
+            }
+            else 
+              GoodStat(receivedTime - startTime, completeTime - startTime) //(rspTime, totalTime)
           } match {
             case Success(v) => v
             case Failure(e) => 
@@ -216,14 +238,15 @@ object S3Ops {
     }
 
   // this is our source of infinite bytes
+  val s3Buffer : Array[Byte] = (for (i <- 0 to 1023) yield 'b'.toByte).toArray    
+
   def byteStream(length: Long): InputStream = new InputStream {
 
     require(length >= 0)    
     var currPos : Long = 0
     def read(): Int = if (currPos < length) {
-      val x : Long = currPos % S3Ops.s3Buffer.size
-      currPos += 1
-      S3Ops.s3Buffer(x.toInt).toInt
+      currPos += 1      
+      S3Ops.s3Buffer((currPos % S3Ops.s3Buffer.size).toInt).toInt
     } else -1
   }
   

@@ -97,12 +97,18 @@ class FlowControlActor extends Actor with ActorLogging {
       // putStream --> routerSink --> statsFlowActor
       // Put source
 
-      // control rate of internal ops, otherwise we will generate too many messages
+      // control rate of internal ops
+      // < 10  :   1  s3op per internal msg
+      // < 100 :  25 s3ops per internal msg
+      // > 100 : 100 s3ops per internal msg
       val opsRateFactor =
         if (MyConfig.cl.get.opsRate < 10) 1
         else if (MyConfig.cl.get.opsRate < 100) 4
         else 100
         
+      // MyCmd (x: start offset, y: Number of puts)
+      // Per s3Cmd, we will start s3Ops from (x*opsRate) object name
+      // for y number of S3ops. 
       val putStream = Source.fromIterator(() => MyCmdIter(0,opsRateFactor-1) )
         .throttle(MyConfig.cl.get.opsRate/opsRateFactor, 1.second, 1, ThrottleMode.Shaping)
         .take(MyConfig.cl.get.maxOps/(opsRateFactor) )
@@ -115,8 +121,10 @@ class FlowControlActor extends Actor with ActorLogging {
 
             // count how much progress in % have we made
             val countProgress = builder.add(Flow[MyCmd].scan(MyCmd(0,0))((s, n) => {
-              // calc % complete                            
-              log.info("Completed TBD")
+              
+              //if(System.nanoTime() % 3 == 0 ) // don't print everything
+                 print("\rStarted: %d %% s3ops".format( (n.start * 100)/MyConfig.cl.get.maxOps))
+                 
               n
             }).drop(1))
 

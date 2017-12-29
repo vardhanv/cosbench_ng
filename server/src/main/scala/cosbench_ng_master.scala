@@ -31,17 +31,18 @@ object Main {
 
     val log = LoggerFactory.getLogger(this.getClass)
     
-    processCmdLine(args)
+    processCmdLine(args)    
 
     val c = MyConfig.cl.get    
     
     // set debug based on commandline
-    if (c.debug) {
-      log.warn("Setting debug mode")
+    if (c.debug > 0) {
+      val l = if (c.debug == 1) Level.INFO else Level.DEBUG
       LoggerFactory.getLogger("cosbench_ng")
         .asInstanceOf[ch.qos.logback.classic.Logger]
-        .setLevel(Level.DEBUG)
+        .setLevel(l)
     }
+    
     
     // set s3 credentials    
     val s3Cred =
@@ -95,7 +96,6 @@ object Main {
         
     implicit val asystem = ActorSystem("system",config.getConfig("Master").withFallback(config))    
     
-    implicit val timeout = Timeout(5.seconds)      
     val localReaper      = asystem.actorOf(Reaper.props,"Reaper") // to terminate at the end    
     val cluster          = Cluster.get(asystem)
     val flowControlActor = asystem.actorOf(FlowControlActor.props,"FlowControl")

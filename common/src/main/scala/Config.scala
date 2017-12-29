@@ -34,8 +34,8 @@ case class Config(
   maxOps           : Long   =  5000,   // total ops
           
   objSize          : Long   =  1,      // Obj size in KB
-  rangeReadStart   : Long   =  0,      // range read start. 0 = read the whole object
-  rangeReadEnd     : Long   =  0,      // range read end
+  rangeReadStart   : Long   =  -1,      // range read start. -1 = no range read 
+  rangeReadEnd     : Long   =  -1,      // range read end
 
   endpoint         : String = "https://s3.amazonaws.com",
   region           : String = "us-east-1", 
@@ -44,7 +44,7 @@ case class Config(
   
   runToCompletion  : Boolean = false,  // don't exit, but wait for everything to complete
   minSlaves        : Long    =  0,     // minimum slaves to wait before we start work
-  debug            : Boolean = false 
+  debug            : Int     =  0 
 )
   
 class  ConfigMsg (c: Config) extends java.io.Serializable { val config = c }
