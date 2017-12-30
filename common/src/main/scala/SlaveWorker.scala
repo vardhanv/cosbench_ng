@@ -180,7 +180,10 @@ class SlaveWorker extends Actor with ActorLogging {
         sender() ! "Slave Not Done"
         sender() ! "Slave is not configured" // ask for config
         log.info("Slave requesting configuration from %s".format(sender().toString()))
-      } else if ( gConfig.get.runToCompletion && (opsWaitingToFinish.length > 0  || opsWaitingToStart.length > 0) ) {
+      } 
+      else if ( gConfig.get.runToCompletion && (opsWaitingToFinish.length > 0  || opsWaitingToStart.length > 0) ) {
+        
+        log.debug("Slave not done")
         
         sender ! "Slave Not Done"        
         opsWaitingToStart = generateLoad(opsWaitingToStart)  // generate a load
@@ -191,7 +194,6 @@ class SlaveWorker extends Actor with ActorLogging {
           else
             opsWaitingToFinish.length
                     
-        log.debug("Slave not done")
         log.debug("Slave has %d pending operations. %d waitingToStart, %d WaitingToFinish"
             .format(outstandingOps, opsWaitingToStart.length ,opsWaitingToFinish.length))
       } 
@@ -234,9 +236,7 @@ class SlaveWorker extends Actor with ActorLogging {
   
   def shutdown () = {
     
-    shutdownStatus = true
-    S3Ops.shutdown()
-    
+    shutdownStatus = true    
     
     sender() ! StatList(accStatsList.toList)
     accStatsList = Nil      
@@ -268,6 +268,7 @@ class Reaper extends Actor with ActorLogging {
   def receive = { case x: Any  => require(false)  }
   override def postStop = { 
     log.debug ("Reaper shutting down...")
+    S3Ops.shutdown()     // S3Ops is shared across workers, and between master and slave
 
     context.system.terminate()
   }

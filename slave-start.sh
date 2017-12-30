@@ -61,7 +61,7 @@ fi
 
 # loop forever only if it is a real command
 if [ "$1" == "--help" ]; then
-   docker run --shm-size 1G -v /tmp:/tmp -e HOST_PORT_NO -e HOST_IP_ADDR -p ${HOST_PORT_NO}:${HOST_PORT_NO}/udp  vardhanv/cosbench_ng-slave:latest "$@"
+   docker run --shm-size 1G -v /tmp:/tmp -e HOST_PORT_NO -e HOST_IP_ADDR -p ${HOST_PORT_NO}:${HOST_PORT_NO}/udp  vardhanv/cosbench_ng-slave:0.9 "$@"
 else
     while true
     do
