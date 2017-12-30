@@ -63,7 +63,7 @@ object Main {
         
     GetS3Client.get(MyConfig.cl.get)
       
-    if (GetS3Client.test == false) {
+    if (MyConfig.cl.get.fakeS3Latency == -1 && GetS3Client.test == false) {
         println("S3 configuration error")
         System.exit(1)        
     }

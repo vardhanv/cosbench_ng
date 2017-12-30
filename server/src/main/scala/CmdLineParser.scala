@@ -84,6 +84,7 @@ object CmdLineParser {
 
       opt[Int]('k', "fakeS3")
         .valueName("<milliseconds>")
+        .validate ( x => if (x >= 0) success else failure("fakeS3 needs non negative latency in milliseconds"))
         .action((x, c) => c.copy(fakeS3Latency = x))
         .optional
         .text("optional, fake s3 with 'value' ms of fake latency")

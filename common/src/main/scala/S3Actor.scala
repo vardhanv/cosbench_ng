@@ -26,6 +26,8 @@ import java.security.cert.X509Certificate
 object GetS3Client {
   val log = LoggerFactory.getLogger(this.getClass)
 
+  def init(c:Config) = get(c)
+  
   def get(c: Config) = {
     if (s3Client.isEmpty)
       s3Client = Some(createS3Client(c))
@@ -117,8 +119,8 @@ object S3Ops {
   def init(c: Config): Boolean = {
     if (config.isEmpty) { config = Some(c) } else require(config.get == c)
 
-    if (config.get.fakeS3Latency <= 0)
-      GetS3Client.get(c)
+    if (config.get.fakeS3Latency < 0)
+      GetS3Client.init(c) // initialize S3 if using real S3
   
     true
   }

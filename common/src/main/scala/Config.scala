@@ -40,7 +40,7 @@ case class Config(
   endpoint         : String = "https://s3.amazonaws.com",
   region           : String = "us-east-1", 
   aidSkey          : (String, String) = ("aid", "skey"),
-  fakeS3Latency    : Long   =  0,      // fake s3 latency
+  fakeS3Latency    : Long   =  -1,      // fake s3 latency
   
   runToCompletion  : Boolean = false,  // don't exit, but wait for everything to complete
   minSlaves        : Long    =  0,     // minimum slaves to wait before we start work
