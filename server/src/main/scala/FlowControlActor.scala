@@ -47,6 +47,9 @@ class FlowControlActor extends Actor with ActorLogging {
       println("Member " + x.member.uniqueAddress.address + " joined. Waiting for " +
         (MyConfig.cl.get.minSlaves - totalSlaves) + " more slaves ")
 
+        if ( (MyConfig.cl.get.minSlaves - totalSlaves) < 0)
+           println("Warning - unexpected slave has joined. Proceeding regardless...")
+
       if (MyConfig.cl.get.minSlaves == totalSlaves) {
         println("All " + totalSlaves + " slaves are here. Starting test..")
 
