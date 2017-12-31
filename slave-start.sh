@@ -66,6 +66,6 @@ else
     while true
     do
        # -Daeron.* are to reduce aeron memory footprint so we can deploy more slaves. Not required if the host machines have more RAM
-       docker run --shm-size 1G -v /tmp:/tmp -e HOST_PORT_NO -e HOST_IP_ADDR -p ${HOST_PORT_NO}:${HOST_PORT_NO}/udp  vardhanv/cosbench_ng-slave:0.9  -Daeron.ipc.term.buffer.length=33554432 -Daeron.term.buffer.length=8388608 "$@"
+       docker run --shm-size 2g -v /tmp:/tmp -e HOST_PORT_NO -e HOST_IP_ADDR -p ${HOST_PORT_NO}:${HOST_PORT_NO}/udp  vardhanv/cosbench_ng-slave:0.9  -Daeron.ipc.term.buffer.length=33554432 -Daeron.term.buffer.length=8388608 "$@"
     done
 fi
