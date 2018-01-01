@@ -30,9 +30,9 @@ object GetS3Client {
   
   def get(c: Config) = {
     if (s3Client.isEmpty)
-      s3Client = Some(createS3Client(c))
+      s3Client = createS3Client(c)
 
-    s3Client.get
+    s3Client
   }
 
   def test(bkt: String) : Boolean =
@@ -66,42 +66,45 @@ object GetS3Client {
     return sslConFactory
   }
 
-  private def createS3Client(c: Config): AmazonS3 = {
-    
-    require (c.aidSkey._1 != "aid")
-    val awsCredentials = new BasicAWSCredentials(c.aidSkey._1, c.aidSkey._2)
+  private def createS3Client(c: Config): Option[AmazonS3] = {
 
-    val clientConfig = new ClientConfiguration().withMaxErrorRetry(0)
-    
-    // No SSL-Verify
-    clientConfig.getApacheHttpClientConfig()
-      .setSslSocketFactory(sslNoVerifyConnFactory())
+    if (c.fakeS3Latency > -1) None
+    else {
+      require(c.aidSkey._1 != "aid")
+      val awsCredentials = new BasicAWSCredentials(c.aidSkey._1, c.aidSkey._2)
 
-    // S3 client with retries disabled
-    val s3Client = AmazonS3ClientBuilder
-      .standard()
-      .withEndpointConfiguration(new EndpointConfiguration(c.endpoint, c.region))
-      .withCredentials(new AWSStaticCredentialsProvider(awsCredentials))
-      .withClientConfiguration(clientConfig)
-      .withPathStyleAccessEnabled(true)
-      .build()
+      val clientConfig = new ClientConfiguration().withMaxErrorRetry(0)
 
-    Try {
-      s3Client.listObjects(c.bucketName)
-    } match {
-      case Success(e) => true
-      case Failure(e) =>
-        log.error("Problem with S3 configuration, unable to do a test list objects on bucket: " + c.bucketName)
-        log.error("Using AID        = " + awsCredentials.getAWSAccessKeyId())
-        log.error("Using secret key = " + awsCredentials.getAWSSecretKey())
-        log.error("Using endpoint   = " + c.endpoint)
-        log.error(e.toString)
-        System.exit(1)
+      // No SSL-Verify
+      clientConfig.getApacheHttpClientConfig()
+        .setSslSocketFactory(sslNoVerifyConnFactory())
 
-        false
+      // S3 client with retries disabled
+      val s3Client = AmazonS3ClientBuilder
+        .standard()
+        .withEndpointConfiguration(new EndpointConfiguration(c.endpoint, c.region))
+        .withCredentials(new AWSStaticCredentialsProvider(awsCredentials))
+        .withClientConfiguration(clientConfig)
+        .withPathStyleAccessEnabled(true)
+        .build()
+
+      Try {
+        s3Client.listObjects(c.bucketName)
+      } match {
+        case Success(e) => true
+        case Failure(e) =>
+          log.error("Problem with S3 configuration, unable to do a test list objects on bucket: " + c.bucketName)
+          log.error("Using AID        = " + awsCredentials.getAWSAccessKeyId())
+          log.error("Using secret key = " + awsCredentials.getAWSSecretKey())
+          log.error("Using endpoint   = " + c.endpoint)
+          log.error(e.toString)
+          System.exit(1)
+
+          false
+      }
+
+      Some(s3Client)
     }
-
-    s3Client
   }
 
 }
@@ -140,10 +143,10 @@ object S3Ops {
               val omd = new ObjectMetadata()
               omd.setContentLength(config.get.objSize * 1024)
 
-              if (config.get.fakeS3Latency > 0)
+              if (config.get.fakeS3Latency > -1)
                 Thread.sleep(config.get.fakeS3Latency) //fake s3
               else
-                s3Client.putObject(bucketName, objName, byteStream(config.get.objSize * 1024), omd)
+                s3Client.get.putObject(bucketName, objName, byteStream(config.get.objSize * 1024), omd)
 
               (System.nanoTime() / 1000000) - startTime
             }
@@ -184,13 +187,13 @@ object S3Ops {
 
               
             val rtnVal =
-              if (config.get.fakeS3Latency > 0) { //fake s3
+              if (config.get.fakeS3Latency > -1) { //fake s3
                 Thread.sleep(config.get.fakeS3Latency)
                 val t = (System.nanoTime() / 1000000)
                 GoodStat(t - startTime, t - startTime)
               } else { // real s3
 
-                val s3Obj = s3Client.getObject(getObjReq)
+                val s3Obj = s3Client.get.getObject(getObjReq)
                 val stream = s3Obj.getObjectContent
 
                 val firstByte = stream.read()
