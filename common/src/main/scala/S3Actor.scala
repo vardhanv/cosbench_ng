@@ -87,11 +87,11 @@ object GetS3Client {
       .build()
 
     Try {
-      s3Client.listBuckets()
+      s3Client.listObjects(c.bucketName)
     } match {
       case Success(e) => true
       case Failure(e) =>
-        log.error("Problem with S3 configuration, unable to do a test list-bucket. ")
+        log.error("Problem with S3 configuration, unable to do a test list objects on bucket: " + c.bucketName)
         log.error("Using AID        = " + awsCredentials.getAWSAccessKeyId())
         log.error("Using secret key = " + awsCredentials.getAWSSecretKey())
         log.error("Using endpoint   = " + c.endpoint)
