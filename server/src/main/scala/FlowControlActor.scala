@@ -17,6 +17,10 @@ import scala.concurrent.{ Future }
 import scala.concurrent.duration._
 import scala.util.{ Success, Failure }
 
+import MyProtoBufMsg._
+
+
+
 
 object FlowControlActor {
   val props = Props(classOf[FlowControlActor])
@@ -83,8 +87,30 @@ class FlowControlActor extends Actor with ActorLogging {
 
       // setup statistics calculator
 
-      val statsSink: Sink[StatList, Future[SmryStats]] =
-        Sink.fold(new SmryStats())((s, x) => x.sl.foldLeft(s)((s, n) => s.updateSmryStats(n)))
+      val statsSink: Sink[StatListMsg, Future[SmryStats]] =
+        Sink.fold(new SmryStats())((s, x) => {
+          
+          // returns a summary stat from the good stats
+          val s1 = x.goodStatList.foldLeft(s)((sl, n) => sl.updateSmryStats( n match {
+            case g:  GoodStatMsg => GoodStat(g.rspStarted,g.rspComplete)
+          })) 
+          
+          // uses the prior good summary stat, and merges the bad into that
+          val s2 = x.badStatList.foldLeft(s1)((sl, n) => sl.updateSmryStats( n match {
+            case b:  BadStatMsg => BadStat()
+          })) 
+          
+          // merges the currStatus if required, returns the  summary 
+          // to be used the next time we get a StatListMsg
+          if (x.currStatus.isDefined) {
+            val f = x.currStatus.get
+            s2.updateSmryStats(FinalStat(f.opsStartedNCompleted, f.opsCompletedStatsNSent, f.opsNStarted))
+          }
+          else
+            s2
+          
+//          x.sl.foldLeft(s)((s, n) => s.updateSmryStats(n))
+          })
 
       // get the actor which will be a sink for the stats
       // and a future that marks everything complete

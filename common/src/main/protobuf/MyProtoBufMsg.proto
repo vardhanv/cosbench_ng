@@ -1,0 +1,32 @@
+
+
+/* Following https://blog.knoldus.com/2017/11/11/protobuf-serialization-in-akka/
+   https://scalapb.github.io/sbt-settings.html
+*/
+
+syntax = "proto3";
+
+message MyCmd {
+    int32 start = 1;
+    int32 end   = 2;
+}
+
+message StatListMsg {
+   repeated GoodStatMsg goodStatList = 1;
+   repeated BadStatMsg  badStatList  = 2;
+   SlaveStatusMsg       currStatus   = 3;
+}   
+
+message GoodStatMsg {
+   double rspStarted  = 1;
+   double rspComplete = 2;
+}
+ 
+message BadStatMsg {} 
+
+message SlaveStatusMsg {
+    int32 opsStartedNCompleted   = 1;
+    int32 opsCompletedStatsNSent = 2;
+    int32 opsNStarted            = 3;
+}
+   

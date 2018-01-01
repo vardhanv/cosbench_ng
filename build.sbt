@@ -7,6 +7,7 @@ lazy val commonSettings = Seq(
   version := "0.9",
   scalaVersion := "2.11.11",
 
+
   // Dependencies
   libraryDependencies ++= Seq (
       "com.typesafe.akka" %% "akka-stream" % "2.5.8",
@@ -30,8 +31,14 @@ lazy val commonSettings = Seq(
       "-explaintypes",
       "-encoding", "UTF-8",
       "-Xlint"
+      ),
+
+   PB.targets in Compile := Seq(
+      scalapb.gen() -> (sourceManaged in Compile).value
       )
  )
+
+
 
 // the three sub-projects within this project
 

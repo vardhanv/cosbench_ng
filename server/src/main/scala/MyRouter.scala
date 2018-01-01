@@ -11,6 +11,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import akka.routing.{ FromConfig }
 import akka.routing.ConsistentHashingRouter._
 
+import MyProtoBufMsg._ 
 
 
 object MyRouter { def props() = Props(classOf[MyRouter]) }
@@ -46,7 +47,7 @@ class MyRouter  extends Actor with ActorLogging {
     case aRef: ActorRef => //init case from FlowControlActor
       statsAcc = Some(aRef)
       
-    case x: StatList => 
+    case x: StatListMsg => 
       
       log.debug("received stat response from: " + sender())
       statsAcc.map { _ ! x} // send to stats

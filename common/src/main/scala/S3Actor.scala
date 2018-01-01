@@ -35,9 +35,9 @@ object GetS3Client {
     s3Client.get
   }
 
-  def test: Boolean =
+  def test(bkt: String) : Boolean =
     Try {
-      s3Client.get.listBuckets()
+      s3Client.get.listObjects(bkt)
     } match {
       case Success(e) => true
       case Failure(e) =>
@@ -183,11 +183,11 @@ object S3Ops {
                 1024 * config.get.objSize
 
               
-            val (receivedTime, completeTime) =
+            val rtnVal =
               if (config.get.fakeS3Latency > 0) { //fake s3
                 Thread.sleep(config.get.fakeS3Latency)
                 val t = (System.nanoTime() / 1000000)
-                (t, t)
+                GoodStat(t - startTime, t - startTime)
               } else { // real s3
 
                 val s3Obj = s3Client.getObject(getObjReq)
@@ -208,15 +208,15 @@ object S3Ops {
 
                 stream.close()
                 s3Obj.close()
-                (rt, ct)
-              }
 
-            if (totalBytesRead != expectedBytes) {
-              log.error("unexpected object size read.  Got: %d bytes, Expected %d bytes".format(totalBytesRead, expectedBytes))
-              BadStat() // return bad stat
-            }
-            else 
-              GoodStat(receivedTime - startTime, completeTime - startTime) //(rspTime, totalTime)
+                if (totalBytesRead != expectedBytes) {
+                  log.error("unexpected object size read.  Got: %d bytes, Expected %d bytes".format(totalBytesRead, expectedBytes))
+                  BadStat() // return bad stat
+                } else
+                  GoodStat(rt - startTime, ct - startTime) //(rspTime, totalTime)
+              }
+            
+            rtnVal
           } match {
             case Success(v) => v
             case Failure(e) => 

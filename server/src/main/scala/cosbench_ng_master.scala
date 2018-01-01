@@ -63,11 +63,17 @@ object Main {
         
     GetS3Client.get(MyConfig.cl.get)
       
-    if (MyConfig.cl.get.fakeS3Latency == -1 && GetS3Client.test == false) {
+    if (c.fakeS3Latency > -1)
+      println("Using fake s3 and ignoring s3 config")
+    else {
+      println("Valdating s3 config by doing a listObject on the specified bucket")
+      if (GetS3Client.test(c.bucketName) == false) {
         println("S3 configuration error")
         System.exit(1)        
+      }
+      println("s3 config okay..")
     }
-    
+        
               
     // validate and setup config file        
     val portNumber   = ConfigFactory.load().getInt("Master.akka.remote.artery.canonical.port")

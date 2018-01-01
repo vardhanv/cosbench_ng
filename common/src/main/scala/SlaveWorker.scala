@@ -7,6 +7,7 @@ import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{ Failure, Success }
 
+import MyProtoBufMsg._
 
 
 
@@ -65,8 +66,8 @@ class SlaveWorker extends Actor with ActorLogging {
     }
   }
 
- def finalStat() : FinalStat = 
-      FinalStat(opsWaitingToFinish.length,  accStatsList.length, opsWaitingToStart.foldRight(0)( (s,x) => { 
+ def finalStat() : SlaveStatusMsg = 
+      SlaveStatusMsg(opsWaitingToFinish.length,  accStatsList.length, opsWaitingToStart.foldRight(0)( (s,x) => { 
         x + ((s.c.end+1-s.c.start) - (s.i - s.c.start)).toInt
       }))
 
@@ -159,7 +160,11 @@ class SlaveWorker extends Actor with ActorLogging {
         // TODO change length to suit large file and small file workloads
         if (accStatsList.length > 50) {
           log.debug("sending %d stats to router".format(accStatsList.length))
-          mostRecentRouterAddress.map { x => x ! StatList(accStatsList.toList) }
+          mostRecentRouterAddress.map { x => 
+            x ! StatListMsg(
+              accStatsList.filter(_.isInstanceOf[GoodStat]).map({
+                case m: GoodStat => GoodStatMsg(m.rspStarted,m.rspComplete) } ),
+              accStatsList.filter(_.isInstanceOf[BadStat]).map(_ => BadStatMsg()))  }
           accStatsList = Nil
         }
       }
@@ -238,7 +243,10 @@ class SlaveWorker extends Actor with ActorLogging {
     
     shutdownStatus = true    
     
-    sender() ! StatList(accStatsList.toList)
+    sender() ! StatListMsg(
+              accStatsList.filter(_.isInstanceOf[GoodStat]).map({
+                case m: GoodStat => GoodStatMsg(m.rspStarted,m.rspComplete) } ),
+              accStatsList.filter(_.isInstanceOf[BadStat]).map(_ => BadStatMsg()))
     accStatsList = Nil      
     
     val fStat = finalStat()
@@ -252,7 +260,7 @@ class SlaveWorker extends Actor with ActorLogging {
         debugStats.countMsgsReceived + ", " +
         (if(debugStats.countMsgsReceived ==0) 0 else debugStats.totalPendingOps/debugStats.countMsgsReceived))
     
-    sender() ! StatList( List(fStat) )
+    sender() ! StatListMsg( List(), List(), Some(fStat) )
 
     context.stop(self)
   }   

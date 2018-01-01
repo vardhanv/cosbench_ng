@@ -14,7 +14,7 @@ fi
 echo "logs in /tmp/aws-env-startup.log"
 echo --------- `Date` -------- >> /tmp/aws-env-startup.log
 echo "Spinning up instances"
-aws --region us-west-2 ec2 run-instances --image-id ami-0def3275 --count 3 --instance-type t2.micro --key-name vish-cosbench --security-groups vish-cosbench-sg 1>/dev/null
+aws --region us-west-2 ec2 run-instances --image-id ami-0def3275 --count 10 --instance-type t2.large --key-name vish-cosbench --security-groups vish-cosbench-sg 1>/dev/null
 
 echo "Waiting 30 seconds for instances to come up..."
 sleep 30
@@ -85,5 +85,5 @@ done
 echo "Instance dns names available in ./slave-hosts-dns and ./master-host-dns"
 echo "Environment setup. Master Private IP:" `cat /tmp/master-host | cut -d ',' -f1`, " Public DNS: " `cat ./master-host-dns`
 
-echo "All instances in this region will be shut down in 20 minutes"
-(sleep 1200; aws --region us-west-2 ec2 describe-instances | grep InstanceId | cut -d'"' -f 4 | xargs aws --region us-west-2 ec2 terminate-instances --instance-ids) &
+echo "All instances in this region will be shut down in 60 minutes"
+(sleep 3600; aws --region us-west-2 ec2 describe-instances | grep InstanceId | cut -d'"' -f 4 | xargs aws --region us-west-2 ec2 terminate-instances --instance-ids) &
