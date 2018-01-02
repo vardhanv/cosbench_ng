@@ -33,7 +33,11 @@ object Main {
     
     processCmdLine(args)    
 
-    val c = MyConfig.cl.get    
+    val c = MyConfig.cl.get
+    
+    val t = "Cosbench_ng Executing: %s".format(MyConfig.rawCl.get.mkString(" "))
+    log.warn(t)
+    println(t)
     
     // set debug based on commandline
     if (c.debug > 0) {

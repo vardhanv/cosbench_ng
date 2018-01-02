@@ -70,7 +70,7 @@ if [ -z ${MY_TARGET} ]; then
 fi
 
 echo "Using AWS_ACCESS_KEY_ID     : $AWS_ACCESS_KEY_ID"; 
-echo "Using AWS_SECRET_ACCESS_KEY : $AWS_SECRET_ACCESS_KEY"; 
+echo "Using AWS_SECRET_ACCESS_KEY : ${AWS_SECRET_ACCESS_KEY:0:1}***********"; 
 echo "Using MY_TARGET             : $MY_TARGET"; 
 echo "Using HOST_IP_ADDR          : $HOST_IP_ADDR"; 
 

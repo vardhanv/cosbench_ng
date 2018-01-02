@@ -12,7 +12,7 @@
 
   <appender name="LOG-FILE" class="ch.qos.logback.core.FileAppender">
     <file>   /tmp/cosbench_ng/debug-slave.log </file>
-    <append> false </append>
+    <append> true </append>
     <encoder>
       <pattern>%X{akkaTimestamp} %-5level %logger{36} %X{akkaSource}: %msg%n</pattern>
     </encoder>

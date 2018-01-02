@@ -55,28 +55,54 @@ class FlowControlActor extends Actor with ActorLogging {
            println("Warning - unexpected slave has joined. Proceeding regardless...")
 
       if (MyConfig.cl.get.minSlaves == totalSlaves) {
-        println("All " + totalSlaves + " slaves are here. Starting test..")
-
-        val runStartTime = System.nanoTime / 1000000
-
-        require(graphToRun.isDefined && statFlowComplete.isDefined)
-
-        graphToRun.map(_.run())
+        println("All " + totalSlaves + " slaves are here.")
         
-        statFlowComplete.map(_.onComplete {
-          case Success(v) =>
-            log.debug("Stream successfully completed")
-            val runEndTime = System.nanoTime() / 1000000
+        // TODO:
+        // messy startup sequence
+        // member up, wait 2 secs, send "send config", wait 5 seconds, send "start test"
+        // very non-deterministic :(
+        val sendConfigTime = 3.seconds
+        context.system.scheduler.scheduleOnce(sendConfigTime, self, "Send Config")
+      }
+      
+    case "Send Config" =>    
+      require(localRouter.isDefined)
+      localRouter.get ! (new ConfigMsg(MyConfig.cl.get))
 
-            v.printSmryStats(runEndTime - runStartTime)
+      log.debug("Got send config")
+      println("Waiting 5 sec for slaves to test s3 connections")   
+      val s3slaveConfigTime = 5.seconds
+      context.system.scheduler.scheduleOnce(s3slaveConfigTime, self, "Start Test")
+      
+    case "Start Test" =>
+      // send a config for all the slaves as the first message
 
-          case Failure(v) => 
-            log.error("Master terminating with an error");
-            log.error("Stream done with error: " + v.getMessage); 
-            context.actorSelection("/user/Reaper") ! PoisonPill
-            
-        })
-      } 
+      val pstr = "Starting test..."
+      println(pstr)
+      log.info(pstr)
+
+      val runStartTime = System.nanoTime / 1000000
+
+      require(graphToRun.isDefined && statFlowComplete.isDefined)
+
+      graphToRun.map(_.run())
+
+      statFlowComplete.map(_.onComplete {
+        case Success(v) =>
+          log.debug("Stream successfully completed")
+          val runEndTime = System.nanoTime() / 1000000
+
+          v.printSmryStats(runEndTime - runStartTime)
+
+        case Failure(v) =>
+          log.error("Master terminating with an error");
+          log.error("Stream done with error: " + v.getMessage);
+          context.actorSelection("/user/Reaper") ! PoisonPill
+
+      })
+
+      
+    
 
     case lr: ActorRef => {
       

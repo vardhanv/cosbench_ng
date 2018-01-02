@@ -113,21 +113,25 @@ class SmryStats (
         MyConfig.cl.get.opsRate.toFloat*MyConfig.cl.get.objSize.toFloat/1024, 
         objRate.toFloat*MyConfig.cl.get.objSize.toFloat/1024))
         
-    println ("Run time                            : " + runTime/1000 + " seconds")
-    println("Known Errors:")
-    println ("+ ops - queued but not started      : +" + opsNStarted.toLong)
-    println ("+ ops - started but not completed   : +" + opsStartedNCompleted.toLong)
-    println ("+ ops - completed but stats dropped : +" + opsCompletedStatsNSent.toLong)
-
-    println("Unknown Errors:")
-    println ("+ ops - failed                      : +" + failed.toLong)
-    println ("+ ops - Unaccounted / Unacknowledged: +" + (MyConfig.cl.get.maxOps - 
-                                                            (count + failed.toLong + 
-                                                            opsNStarted.toLong + 
-                                                            opsStartedNCompleted.toLong +
-                                                            opsCompletedStatsNSent.toLong)))
-
-                                                            
+    val errStr = """
+                   |Run time                            : %d seconds
+                   |Known Errors:
+                   |+ ops - queued but not started      : +%d
+                   |+ ops - started but not completed   : +%d
+                   |+ ops - completed but stats dropped : +%d
+                   |Unknown Errors:
+                   |+ ops - failed                      : +%d
+                   |+ ops - Unaccounted / Unacknowledged: +%d""".stripMargin.format(runTime/1000 
+                       ,opsNStarted.toLong
+                       ,opsStartedNCompleted.toLong
+                       ,opsCompletedStatsNSent.toLong
+                       ,failed.toLong
+                       ,MyConfig.cl.get.maxOps - 
+                            (count + failed.toLong 
+                            + opsNStarted.toLong 
+                            + opsStartedNCompleted.toLong
+                            + opsCompletedStatsNSent.toLong))
+     
                                                             
     val logHeader : String = "tag,time,cmd,objSize(KB),endpoint,rangeRead,targetOps,actualOps," +
                       "targetOpsRate,actualOpsRate,ttFb(avg),ttFb(min)," +
@@ -164,8 +168,12 @@ class SmryStats (
         objRate.toFloat*MyConfig.cl.get.objSize.toFloat/1024,
         runTime/1000,
         MyConfig.rawCl.get.mkString(" "))
-   
-    log.warn(logOutput)
+
+        
+    println(errStr)
+    log.warn(logOutput)    
+    log.warn(errStr)
+
     
     val p = FileSystems.getDefault().getPath("/tmp/cosbench_ng/results.csv")
     

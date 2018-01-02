@@ -52,11 +52,18 @@ class MyRouter  extends Actor with ActorLogging {
       log.debug("received stat response from: " + sender())
       statsAcc.map { _ ! x} // send to stats
       pendingAck.map { _ ! "ack" }
+
+    case x: ConfigMsg => // received from flowcontrolActor -> forward to slaves
+      require ( MyConfig.cl.isDefined )
+      log.info("router received: Config msg, broadcasting to slaves")
+      routerA ! Broadcast(x)
+      
       
     case "Slave is not configured" => //send config to slave
       require ( MyConfig.cl.isDefined )
       log.info("router received: slave not configured. Sending config to %s".format(sender().toString()))
       sender() ! (new ConfigMsg(MyConfig.cl.get))
+
       
     case "done" =>  // upstream done. time to die ?
       log.info("router received: done --------> UPSTREAM COMPLETE")       

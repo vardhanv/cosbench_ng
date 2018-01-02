@@ -95,7 +95,7 @@ object GetS3Client {
         case Failure(e) =>
           log.error("Problem with S3 configuration, unable to do a test list objects on bucket: " + c.bucketName)
           log.error("Using AID        = " + awsCredentials.getAWSAccessKeyId())
-          log.error("Using secret key = " + awsCredentials.getAWSSecretKey())
+          log.error("Using secret key = " + awsCredentials.getAWSSecretKey().charAt(1) + "***")
           log.error("Using endpoint   = " + c.endpoint)
           log.error(e.toString)
           System.exit(1)
