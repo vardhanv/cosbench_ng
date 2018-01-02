@@ -24,8 +24,8 @@ create_config_file() {
 print_help() {
    echo "First $0 --configure to configure your environment"
    echo "then  $0 --help to see help instructions for cosbench_ng slave"
-   echo "Be aware that this is only a wraper script that helps setup the environment and runs the underlying docker container"
 }
+
 
 
 if [ $# -eq 0 ]; then
@@ -58,6 +58,8 @@ else
     echo "Using HOST_PORT_NO: $HOST_PORT_NO"; 
 fi
 
+
+echo "WARNING: Slave cannot run on the same host as the master... (due to issues with how UDP works with docker containers)"
 
 # loop forever only if it is a real command
 if [ "$1" == "--help" ]; then
