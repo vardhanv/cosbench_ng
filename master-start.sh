@@ -25,9 +25,9 @@ IFS=$'\n\t'
 
 
 print_help() {
-   echo "First $0 --configure to configure your environment"
-   echo "then  $0 --help to see help instructions for cosbench_ng"
-   echo "Be aware that this is only a wraper script that helps setup the environment and runs the underlying docker container"
+   echo "First $0 --configure : Configure your environment"
+   echo "then  $0 --help      : Help. Note, the endpoint option (-e) is not required" 
+   echo "This is a script that runs the underlying docker container"
 }
 
 
