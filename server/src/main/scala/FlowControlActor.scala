@@ -51,8 +51,11 @@ class FlowControlActor extends Actor with ActorLogging {
       println("Member " + x.member.uniqueAddress.address + " joined. Waiting for " +
         (MyConfig.cl.get.minSlaves - totalSlaves) + " more slaves ")
 
-        if ( (MyConfig.cl.get.minSlaves - totalSlaves) < 0)
-           println("Warning - unexpected slave has joined. Proceeding regardless...")
+        if ( (MyConfig.cl.get.minSlaves - totalSlaves) < 0) {
+           val myStr = "Warning - unexpected slave has joined. Proceeding regardless..."
+           println(myStr)
+           log.warning(myStr)
+        }
 
       if (MyConfig.cl.get.minSlaves == totalSlaves) {
         println("All " + totalSlaves + " slaves are here.")
@@ -155,11 +158,13 @@ class FlowControlActor extends Actor with ActorLogging {
       // control rate of internal ops
       // < 10  :   1  s3op per internal msg
       // < 100 :  25 s3ops per internal msg
-      // > 100 : 100 s3ops per internal msg
+      // < 3000 : 100 s3ops per internal msg
+      // > 3000 : 1000 s3Ops per internal msg
       val opsRateFactor =
         if (MyConfig.cl.get.opsRate < 10) 1
         else if (MyConfig.cl.get.opsRate < 100) 4
-        else 100
+        else if (MyConfig.cl.get.opsRate < 3000) 100
+        else 1000
         
       // MyCmd (x: start offset, y: Number of puts)
       // Per s3Cmd, we will start s3Ops from (x*opsRate) object name
@@ -178,7 +183,7 @@ class FlowControlActor extends Actor with ActorLogging {
             val countProgress = builder.add(Flow[MyCmd].scan(MyCmd(0,0))((s, n) => {
               
               //if(System.nanoTime() % 3 == 0 ) // don't print everything
-                 print("\rStarted: %d %% s3ops".format( (n.start * 100)/MyConfig.cl.get.maxOps))
+                 print("\rStarted: %d %% s3ops ".format( (n.start * 100)/MyConfig.cl.get.maxOps))
                  
               n
             }).drop(1))

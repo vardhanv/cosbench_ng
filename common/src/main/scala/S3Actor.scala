@@ -73,13 +73,20 @@ object GetS3Client {
       require(c.aidSkey._1 != "aid")
       val awsCredentials = new BasicAWSCredentials(c.aidSkey._1, c.aidSkey._2)
 
-      val clientConfig = new ClientConfiguration().withMaxErrorRetry(0)
+      
+      // retry 10 times if run to completion is set
+      val clientConfig =
+        if (c.runToCompletion)
+          new ClientConfiguration().withMaxErrorRetry(10)
+        else
+          new ClientConfiguration().withMaxErrorRetry(0)
+        
 
       // No SSL-Verify
       clientConfig.getApacheHttpClientConfig()
         .setSslSocketFactory(sslNoVerifyConnFactory())
 
-      // S3 client with retries disabled
+      // S3 client with retries based on runToCompletion
       val s3Client = AmazonS3ClientBuilder
         .standard()
         .withEndpointConfiguration(new EndpointConfiguration(c.endpoint, c.region))
