@@ -29,9 +29,9 @@ object MyConfig {
 }
 
 case class Config(
-  bucketName       : String = "Vishnu_test",
-  cmd              : String = "PUT",   // "PUT" or "GET" - action to execute
-  testTag          : String = "NOTAG",
+  bucketName       : String  = "Vishnu_test",
+  cmd              : String  = "PUT",   // "PUT" or "GET" - action to execute
+  testTag          : String  = "NOTAG",
   
   opsRate          : Int    =  200,    // target ops per second 
   maxOps           : Long   =  5000,   // total ops
@@ -47,7 +47,8 @@ case class Config(
   
   runToCompletion  : Boolean = false,  // don't exit, but wait for everything to complete
   minSlaves        : Long    =  0,     // minimum slaves to wait before we start work
-  debug            : Int     =  0 
+  debug            : Int     =  0,
+  newBucket        : Boolean = false
 )
   
 class  ConfigMsg (c: Config) extends java.io.Serializable { val config = c }

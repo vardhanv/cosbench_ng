@@ -39,9 +39,10 @@ object CmdLineParser {
       head("Cosbench_ng", "1.0")
 
       opt[String]('m', "master")
+        .valueName("<master_ip>")
         .required()
         .action((x, c) => c.copy(master = Some(x)))
-        .text("\"akka://master_ip:port\". See master console for text with \"Cosbench_ng master UP at: akka://\" ")
+        .text("See master console for the ip")
 
       opt[Int]('u', "debug")
         .action((x, c) => c.copy(localDebug = x))

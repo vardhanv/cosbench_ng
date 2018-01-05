@@ -63,14 +63,14 @@ object Main {
       c.testTag, c.opsRate, c.maxOps, c.objSize,
       c.rangeReadStart, c.rangeReadEnd, c.endpoint, c.region,
       aidSkey,
-      c.fakeS3Latency, c.runToCompletion, c.minSlaves, c.debug))  
+      c.fakeS3Latency, c.runToCompletion, c.minSlaves, c.debug, c.newBucket))  
         
     GetS3Client.get(MyConfig.cl.get)
       
     if (c.fakeS3Latency > -1)
       println("Using fake s3 and ignoring s3 config")
     else {
-      println("Valdating s3 config by doing a listObject on the specified bucket")
+      println("Valdating s3 config by doing a listObject on bucket %s".format(c.bucketName))
       if (GetS3Client.test(c.bucketName) == false) {
         println("S3 configuration error")
         System.exit(1)        

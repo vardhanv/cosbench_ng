@@ -96,11 +96,18 @@ object GetS3Client {
         .build()
 
       Try {
+        if (c.newBucket && s3Client.doesBucketExistV2(c.bucketName) == false) {
+          val m = "Creating new bucket: %s".format(c.bucketName)
+          println(m)
+          log.info(m)
+          s3Client.createBucket(c.bucketName)
+        }
+
         s3Client.listObjects(c.bucketName)
       } match {
         case Success(e) => true
         case Failure(e) =>
-          log.error("Problem with S3 configuration, unable to do a test list objects on bucket: " + c.bucketName)
+          log.error("Problem with S3 configuration, unable to create the bucket or do a list objects: " + c.bucketName)
           log.error("Using AID        = " + awsCredentials.getAWSAccessKeyId())
           log.error("Using secret key = " + awsCredentials.getAWSSecretKey().charAt(1) + "***")
           log.error("Using endpoint   = " + c.endpoint)

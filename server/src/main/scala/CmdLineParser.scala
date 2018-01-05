@@ -17,8 +17,14 @@ object CmdLineParser {
       opt[String]('b', "bucket")
         .required()
         .action((x, c) => c.copy(bucketName = x))
-        .text("target s3 bucket")
+        .text("use s3 bucket")
 
+      opt[Unit]('n', "new-bucket")
+        .optional()
+        .action((_, c) => c.copy(newBucket = true))
+        .text("create the S3 bucket if it does not exist")
+        
+        
       opt[String]('c', "cmd")
         .valueName("<PUT/GET>")
         .required()
