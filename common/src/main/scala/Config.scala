@@ -48,7 +48,9 @@ case class Config(
   runToCompletion  : Boolean = false,  // don't exit, but wait for everything to complete
   minSlaves        : Long    =  0,     // minimum slaves to wait before we start work
   debug            : Int     =  0,
-  newBucket        : Boolean = false
+  newBucket        : Boolean = false,
+  suffix           : String  = "",
+  prefix           : String  =""
 )
   
 class  ConfigMsg (c: Config) extends java.io.Serializable { val config = c }
