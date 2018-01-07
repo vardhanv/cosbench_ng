@@ -227,7 +227,7 @@ class SlaveWorker extends Actor with ActorLogging {
     val bucketName = gConfig.get.bucketName
 
     if (opsWaitingToFinish.length < maxPendingOps && c.i <= c.c.end) {
-      val objName = c.i.toString
+      val objName = gConfig.get.prefix + c.i.toString + gConfig.get.suffix
       
       opsWaitingToFinish = { gConfig.get.cmd match {
         case "PUT" => S3Ops.put(bucketName, objName)

@@ -63,7 +63,8 @@ object Main {
       c.testTag, c.opsRate, c.maxOps, c.objSize,
       c.rangeReadStart, c.rangeReadEnd, c.endpoint, c.region,
       aidSkey,
-      c.fakeS3Latency, c.runToCompletion, c.minSlaves, c.debug, c.newBucket))  
+      c.fakeS3Latency, c.runToCompletion, c.minSlaves, 
+      c.debug, c.newBucket, c.suffix,c.prefix))  
         
     GetS3Client.get(MyConfig.cl.get)
       
