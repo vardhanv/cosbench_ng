@@ -11,7 +11,7 @@ import MyProtoBufMsg._
 
 
 
-
+  
 object SlaveWorker {
   val props = Props[SlaveWorker] 
 
@@ -132,7 +132,7 @@ class SlaveWorker extends Actor with ActorLogging {
 
         val statList = completedOps.map(f => f.value.get match {
           case Success(y: Stats) => y
-          case Failure(e) => log.error("received unexpexted bad stat"); require(false); BadStat()
+          case Failure(_) => log.error("received unexpexted bad stat"); require(false); BadStat()
         })
 
         statList.map {
@@ -178,7 +178,7 @@ class SlaveWorker extends Actor with ActorLogging {
       shutdown()      
 
 
-    case x: SlaveWorker.StopS3Actor =>
+    case _: SlaveWorker.StopS3Actor =>
       log.debug("SlaveWorker.StopS3Actor Recived")
       
       if (gConfig.isEmpty) {
@@ -197,7 +197,7 @@ class SlaveWorker extends Actor with ActorLogging {
           if (opsWaitingToStart.length > 0 )
             (opsWaitingToStart.length* (opsWaitingToStart.head.c.end - opsWaitingToStart.head.c.start + 1)) + opsWaitingToFinish.length
           else
-            opsWaitingToFinish.length
+            opsWaitingToFinish.length.toLong
                     
         log.debug("Slave has %d pending operations. %d waitingToStart, %d WaitingToFinish"
             .format(outstandingOps, opsWaitingToStart.length ,opsWaitingToFinish.length))
@@ -222,7 +222,7 @@ class SlaveWorker extends Actor with ActorLogging {
     }
     case Nil => List()
   }
-
+ 
   def generateLoadOp(c: CurrOp): Long = { // recursive for
     val bucketName = gConfig.get.bucketName
 
@@ -273,11 +273,12 @@ object Reaper {  val props = Props[Reaper]  }
 
 class Reaper extends Actor with ActorLogging {  
 
-  def receive = { case x: Any  => require(false)  }
+  def receive = { case _: Any  => require(false)  }
   override def postStop = { 
     log.debug ("Reaper shutting down...")
     S3Ops.shutdown()     // S3Ops is shared across workers, and between master and slave
 
     context.system.terminate()
+    ()
   }
 }
