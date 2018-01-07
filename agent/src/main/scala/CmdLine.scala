@@ -20,6 +20,8 @@
 
 package cosbench_ng
 
+// scopt for commandline
+import scopt._
 import org.apache.log4j._
 
 case class CmdLineConfig(
