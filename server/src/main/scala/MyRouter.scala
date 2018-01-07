@@ -52,6 +52,7 @@ class MyRouter  extends Actor with ActorLogging {
       log.debug("received stat response from: " + sender())
       statsAcc.map { _ ! x} // send to stats
       pendingAck.map { _ ! "ack" }
+      ()
 
     case x: ConfigMsg => // received from flowcontrolActor -> forward to slaves
       require ( MyConfig.cl.isDefined )

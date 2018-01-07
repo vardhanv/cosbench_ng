@@ -2,7 +2,6 @@
 package cosbench_ng
 
 // scopt for commandline
-import scopt._
 import org.slf4j.LoggerFactory
 
 object CmdLineParser {
@@ -17,7 +16,7 @@ object CmdLineParser {
       opt[String]('b', "bucket")
         .required()
         .action((x, c) => c.copy(bucketName = x))
-        .text("use s3 bucket")
+        .text("s3 bucket to use")
 
       opt[Unit]('n', "new-bucket")
         .optional()
@@ -36,7 +35,7 @@ object CmdLineParser {
         })
         .text("command to execute. One of PUT/GET")
 
-      opt[Int]('m', "maxOps")
+      opt[Long]('m', "maxOps")
         .action((x, c) => c.copy(maxOps = x))
         .required()
         .validate({
@@ -65,9 +64,9 @@ object CmdLineParser {
       opt[Unit]('f', "finish-all-ops")
         .action((_, c) => c.copy(runToCompletion = true))
         .optional
-        .text("optional, changes how we terminate and forces completion of all s3Ops")
+        .text("optional, forces completion of all s3Ops")
 
-      opt[Map[String, Int]]('g', "range-read")
+      opt[Map[String, Long]]('g', "range-read")
         .valueName("<start=v1,end=v2>")
         .action( (x,c) => { 
           c.copy(rangeReadStart = x("start"))
@@ -80,20 +79,16 @@ object CmdLineParser {
               || x("end") < x("start"))
             failure("Invalid range-read values")
             else success
-          /*
-          case (k, v) =>
-            if (k > 0 && v > 0 && k < v) { success }
-            else failure("Invalid range read values %d,%d".format(k, v))*/
         })
         .optional
-        .text("optional, range-read. Example (-g:start=200,end=400), all values in bytes")
+        .text("optional, range-read. e.g (-g start=2,end=4), in bytes")
 
-      opt[Int]('k', "fakeS3")
-        .valueName("<milliseconds>")
+      opt[Long]('k', "fakeS3")
+        .valueName("<value>")
         .validate ( x => if (x >= 0) success else failure("fakeS3 needs non negative latency in milliseconds"))
         .action((x, c) => c.copy(fakeS3Latency = x))
         .optional
-        .text("optional, fake s3 with 'value' ms of fake latency")
+        .text("optional, dry run with 'value' ms of latency to a fake s3")
 
       /*
        *  Commenting out, since it can cause confusion because my
@@ -119,6 +114,26 @@ object CmdLineParser {
         *
         */
 
+      opt[Map[String, String]]('o', "obj-naming")
+        .valueName("<prefix=v1,suffix=v2>")
+        .action((x, c) => {
+          val t =
+            if (x.keySet.contains("prefix")) c.copy(prefix = x("prefix")) else c
+          val rtn =
+            if (x.keySet.contains("suffix")) t.copy(suffix = x("suffix")) else t
+
+          rtn
+        })
+        .validate( x => {
+          if(x.keySet.count(_ => true) > 2 || 
+              (x.keySet.contains("prefix") == false  && x.keySet.contains("suffix")  == false))
+            failure("Invalid suffix/prefix values for object naming")
+            else success
+        })
+        .optional
+        .text("optional, add a prefix and/or suffix e.g. (-o prefix=p,suffix=s), will create objects such as p0s, p1s, p2s...")
+
+        
       opt[String]('i', "region")
         .action((x, c) => c.copy(region = x))
         .optional()
@@ -127,14 +142,14 @@ object CmdLineParser {
       opt[Int]('s', "slaves")
         .action((x, c) => c.copy(minSlaves = x))
         .optional
-        .text("optional, minimum number of slaves. default = 0. More slaves = more performance")
+        .text("optional, minimum number of slaves. default = 0")
 
       opt[String]('t', "testtag")
         .action((x, c) => c.copy(testTag = x))
         .optional
-        .text("optional, Tag your test with a string which shows up in your results file")
+        .text("optional, Tag your test")
 
-      opt[Int]('z', "objSize")
+      opt[Long]('z', "objSize")
         .action((x, c) => c.copy(objSize = x))
         .optional
         .text("optional, object size in KB. default = 1")
