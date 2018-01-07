@@ -5,7 +5,7 @@
 lazy val commonSettings = Seq(
   organization := "Vishnu",
   version := "0.9",
-  scalaVersion := "2.11.11",
+  scalaVersion := "2.12.4",
 
 
   // Dependencies
@@ -27,10 +27,14 @@ lazy val commonSettings = Seq(
       "-deprecation",
       "-unchecked",
       "-feature",
-      "-optimise",
       "-explaintypes",
       "-encoding", "UTF-8",
-      "-Xlint"
+      "-Xlint",
+      "-target:jvm-1.8",
+      "-Ywarn-dead-code",
+      "-Ywarn-numeric-widen",
+      "-Ywarn-value-discard",
+      "-Ywarn-unused"
       ),
 
    PB.targets in Compile := Seq(

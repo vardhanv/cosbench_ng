@@ -6,15 +6,15 @@ import java.nio.file.{ FileSystems, Files, StandardOpenOption }
 
 
 
-case class IntermediateStats (vSum_ : Double = 0, vSumSqr: Double = 0, count: Long =0, k: Option[Double] = None)
+case class IntermediateStats (vSum_ : Double = 0, vSumSqr: Double = 0, count: Long =0, k: Option[Long] = None)
 
 
 case class Metric(average: Double = 0,
-    min: Double = 999999999,
-    max: Double = 0,
+    min: Long = 999999999,
+    max: Long = 0,
     inter: IntermediateStats = IntermediateStats()) {
 
-  def merge(newStat: Double): Metric = {
+  def merge(newStat: Long): Metric = {
     // calculate summary stats. Variance from 
     // https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance (computing shifted data)
     // variance calculation
@@ -55,21 +55,21 @@ class SmryStats (
     val rspStart: Metric = new Metric(), 
     val rspEnd: Metric = new Metric()) {
 
-  def merge(g: GoodStat): SmryStats = new SmryStats(opsStartedNCompleted,
+  def mergeGood(g: GoodStat): SmryStats = new SmryStats(opsStartedNCompleted,
     opsCompletedStatsNSent,
     opsNStarted,
     failed,
     rspStart.merge(g.rspStarted),
     rspEnd.merge(g.rspComplete))
 
-  def merge(b: BadStat): SmryStats = new SmryStats(opsStartedNCompleted,
+  def mergeBad(): SmryStats = new SmryStats(opsStartedNCompleted,
     opsCompletedStatsNSent,
     opsNStarted,
     failed + 1,
     rspStart,
     rspEnd)
 
-  def merge(f: FinalStat): SmryStats = new SmryStats(
+  def mergeFinal(f: FinalStat): SmryStats = new SmryStats(
     opsStartedNCompleted + f.opsStartedNCompleted,
     opsCompletedStatsNSent + f.opsCompletedStatsNSent,
     opsNStarted + f.opsNStarted,
@@ -81,9 +81,9 @@ class SmryStats (
   // calculate summary stats. Variance from 
   // https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance (computing shifted data)
   def updateSmryStats (x: Stats) : SmryStats = x match { 
-    case y: GoodStat  => merge(y)
-    case y: BadStat   => merge(y)
-    case y: FinalStat => merge(y)
+    case y: GoodStat  => mergeGood(y)
+    case _: BadStat   => mergeBad()
+    case y: FinalStat => mergeFinal(y)
   }
 
   
@@ -92,7 +92,6 @@ class SmryStats (
     val log = LoggerFactory.getLogger(this.getClass)
     
     val count = rspStart.inter.count
-    val stdDeviation = rspStart.stdDeviation.toLong
     val objRate = count.toFloat/(runTime/1000)
     
     println()

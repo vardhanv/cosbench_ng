@@ -2,7 +2,6 @@
 package cosbench_ng
 
 // scopt for commandline
-import scopt._
 import org.slf4j.LoggerFactory
 
 object CmdLineParser {
@@ -36,7 +35,7 @@ object CmdLineParser {
         })
         .text("command to execute. One of PUT/GET")
 
-      opt[Int]('m', "maxOps")
+      opt[Long]('m', "maxOps")
         .action((x, c) => c.copy(maxOps = x))
         .required()
         .validate({
@@ -67,7 +66,7 @@ object CmdLineParser {
         .optional
         .text("optional, forces completion of all s3Ops")
 
-      opt[Map[String, Int]]('g', "range-read")
+      opt[Map[String, Long]]('g', "range-read")
         .valueName("<start=v1,end=v2>")
         .action( (x,c) => { 
           c.copy(rangeReadStart = x("start"))
@@ -84,7 +83,7 @@ object CmdLineParser {
         .optional
         .text("optional, range-read. e.g (-g start=2,end=4), in bytes")
 
-      opt[Int]('k', "fakeS3")
+      opt[Long]('k', "fakeS3")
         .valueName("<value>")
         .validate ( x => if (x >= 0) success else failure("fakeS3 needs non negative latency in milliseconds"))
         .action((x, c) => c.copy(fakeS3Latency = x))
@@ -150,7 +149,7 @@ object CmdLineParser {
         .optional
         .text("optional, Tag your test")
 
-      opt[Int]('z', "objSize")
+      opt[Long]('z', "objSize")
         .action((x, c) => c.copy(objSize = x))
         .optional
         .text("optional, object size in KB. default = 1")

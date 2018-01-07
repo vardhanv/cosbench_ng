@@ -2,21 +2,9 @@ package cosbench_ng
 
 
 import com.typesafe.config.ConfigFactory
-import akka.actor.{ ActorSystem, PoisonPill }
-import akka.event.Logging.DebugLevel
 
 import akka.serialization.SerializerWithStringManifest
 import MyProtoBufMsg._
-
-//Cluster imports
-import akka.cluster.{ Cluster, ClusterEvent }
-import akka.cluster.ClusterEvent._
-import akka.cluster.singleton._
-
-// log4j
-import org.slf4j.{LoggerFactory}
-import ch.qos.logback.classic.Level
-
 
 
 object MyConfig {
@@ -46,7 +34,7 @@ case class Config(
   fakeS3Latency    : Long   =  -1,      // fake s3 latency
   
   runToCompletion  : Boolean = false,  // don't exit, but wait for everything to complete
-  minSlaves        : Long    =  0,     // minimum slaves to wait before we start work
+  minSlaves        : Int     =  0,     // minimum slaves to wait before we start work
   debug            : Int     =  0,
   newBucket        : Boolean = false,
   suffix           : String  = "",
@@ -59,8 +47,8 @@ class  ConfigMsg (c: Config) extends java.io.Serializable { val config = c }
 //object MyCmd { def apply(s: Int, e: Int) = new MyProtoBufMsg.MyCmd(s,e) }
 //class  MyCmd(val start : Int = 0, val end : Int = 99) extends java.io.Serializable {}
 
-object MyCmdIter { def apply(i: Int, inc: Int) = new MyCmdIter(i,inc) }
-class  MyCmdIter(val start: Int, val inc: Int) extends Iterator[MyCmd] { 
+object MyCmdIter { def apply(i: Long, inc: Long) = new MyCmdIter(i,inc) }
+class  MyCmdIter(val start: Long, val inc: Long) extends Iterator[MyCmd] { 
   var index : Option[MyCmd] = None  
   def hasNext = true
   def next = {
@@ -77,10 +65,10 @@ class  MyCmdIter(val start: Int, val inc: Int) extends Iterator[MyCmd] {
 //case class FinalStatList (sl : List[FinalStat])
 
 class Stats() extends java.io.Serializable
-class GoodStat (val rspStarted: Double, val rspComplete: Double) extends Stats  //status = failed_op or successfull_op
+class GoodStat (val rspStarted: Long, val rspComplete: Long) extends Stats  //status = failed_op or successfull_op
 class BadStat() extends Stats
 
-object GoodStat  { def apply(rs: Double, rc: Double) = new GoodStat(rs,rc) }
+object GoodStat  { def apply(rs: Long, rc: Long) = new GoodStat(rs,rc) }
 object BadStat   { def apply() = new BadStat() } 
 
 
