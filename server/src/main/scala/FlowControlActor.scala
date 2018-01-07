@@ -66,7 +66,6 @@ class FlowControlActor extends Actor with ActorLogging {
         // very non-deterministic :(
         val sendConfigTime = 3.seconds
         context.system.scheduler.scheduleOnce(sendConfigTime, self, "Send Config")
-        ()
       }
       
     case "Send Config" =>    
@@ -77,8 +76,7 @@ class FlowControlActor extends Actor with ActorLogging {
       println("Waiting 5 sec for slaves to test s3 connections")   
       val s3slaveConfigTime = 5.seconds
       context.system.scheduler.scheduleOnce(s3slaveConfigTime, self, "Start Test")
-      ()
-
+      
     case "Start Test" =>
       // send a config for all the slaves as the first message
 
@@ -105,8 +103,9 @@ class FlowControlActor extends Actor with ActorLogging {
           context.actorSelection("/user/Reaper") ! PoisonPill
 
       })
+
       
-      ()
+    
 
     case lr: ActorRef => {
       
@@ -127,7 +126,7 @@ class FlowControlActor extends Actor with ActorLogging {
           
           // uses the prior good summary stat, and merges the bad into that
           val s2 = x.badStatList.foldLeft(s1)((sl, n) => sl.updateSmryStats( n match {
-            case _:  BadStatMsg => BadStat()
+            case b:  BadStatMsg => BadStat()
           })) 
           
           // merges the currStatus if required, returns the  summary 
@@ -170,7 +169,7 @@ class FlowControlActor extends Actor with ActorLogging {
       // MyCmd (x: start offset, y: Number of puts)
       // Per s3Cmd, we will start s3Ops from (x*opsRate) object name
       // for y number of S3ops. 
-      val putStream = Source.fromIterator(() => MyCmdIter(0,opsRateFactor.toLong -1) )
+      val putStream = Source.fromIterator(() => MyCmdIter(0,opsRateFactor-1) )
         .throttle(MyConfig.cl.get.opsRate/opsRateFactor, 1.second, 1, ThrottleMode.Shaping)
         .take(MyConfig.cl.get.maxOps/(opsRateFactor) )
 

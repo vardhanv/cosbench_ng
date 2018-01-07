@@ -10,6 +10,8 @@ import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration
 import com.amazonaws.auth.{ AWSStaticCredentialsProvider, BasicAWSCredentials}
 
 import java.util.concurrent.Executors
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 
 import scala.concurrent.ExecutionContext
 import scala.util.{ Try, Failure, Success }
@@ -37,7 +39,7 @@ object GetS3Client {
     Try {
       s3Client.get.listObjects(bkt)
     } match {
-      case Success(_) => true
+      case Success(e) => true
       case Failure(e) =>
         log.error(e.toString)
         false
@@ -103,7 +105,7 @@ object GetS3Client {
 
         s3Client.listObjects(c.bucketName)
       } match {
-        case Success(_) => true
+        case Success(e) => true
         case Failure(e) =>
           log.error("Problem with S3 configuration, unable to create the bucket or do a list objects: " + c.bucketName)
           log.error("Using AID        = " + awsCredentials.getAWSAccessKeyId())
@@ -183,7 +185,7 @@ object S3Ops {
       Future {
         blocking {
           Try {
-            val buffer: Array[Byte] = Array.ofDim(9126)
+            var buffer: Array[Byte] = Array.ofDim(9126)
 
             val startTime = System.nanoTime / 1000000
             val getObjReq = new GetObjectRequest(bucketName, objName)

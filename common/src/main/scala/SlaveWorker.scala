@@ -11,7 +11,7 @@ import MyProtoBufMsg._
 
 
 
-  
+
 object SlaveWorker {
   val props = Props[SlaveWorker] 
 
@@ -132,7 +132,7 @@ class SlaveWorker extends Actor with ActorLogging {
 
         val statList = completedOps.map(f => f.value.get match {
           case Success(y: Stats) => y
-          case Failure(_) => log.error("received unexpexted bad stat"); require(false); BadStat()
+          case Failure(e) => log.error("received unexpexted bad stat"); require(false); BadStat()
         })
 
         statList.map {
@@ -178,7 +178,7 @@ class SlaveWorker extends Actor with ActorLogging {
       shutdown()      
 
 
-    case _: SlaveWorker.StopS3Actor =>
+    case x: SlaveWorker.StopS3Actor =>
       log.debug("SlaveWorker.StopS3Actor Recived")
       
       if (gConfig.isEmpty) {
@@ -197,7 +197,7 @@ class SlaveWorker extends Actor with ActorLogging {
           if (opsWaitingToStart.length > 0 )
             (opsWaitingToStart.length* (opsWaitingToStart.head.c.end - opsWaitingToStart.head.c.start + 1)) + opsWaitingToFinish.length
           else
-            opsWaitingToFinish.length.toLong
+            opsWaitingToFinish.length
                     
         log.debug("Slave has %d pending operations. %d waitingToStart, %d WaitingToFinish"
             .format(outstandingOps, opsWaitingToStart.length ,opsWaitingToFinish.length))
@@ -222,12 +222,12 @@ class SlaveWorker extends Actor with ActorLogging {
     }
     case Nil => List()
   }
- 
+
   def generateLoadOp(c: CurrOp): Long = { // recursive for
     val bucketName = gConfig.get.bucketName
 
     if (opsWaitingToFinish.length < maxPendingOps && c.i <= c.c.end) {
-      val objName = gConfig.get.prefix + c.i.toString + gConfig.get.suffix
+      val objName = c.i.toString
       
       opsWaitingToFinish = { gConfig.get.cmd match {
         case "PUT" => S3Ops.put(bucketName, objName)
@@ -273,12 +273,11 @@ object Reaper {  val props = Props[Reaper]  }
 
 class Reaper extends Actor with ActorLogging {  
 
-  def receive = { case _: Any  => require(false)  }
+  def receive = { case x: Any  => require(false)  }
   override def postStop = { 
     log.debug ("Reaper shutting down...")
     S3Ops.shutdown()     // S3Ops is shared across workers, and between master and slave
 
     context.system.terminate()
-    ()
   }
 }
