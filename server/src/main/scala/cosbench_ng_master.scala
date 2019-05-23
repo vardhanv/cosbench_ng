@@ -4,7 +4,6 @@ package cosbench_ng
 
 import com.typesafe.config.ConfigFactory
 import akka.actor.{ ActorSystem, PoisonPill }
-import akka.event.Logging.DebugLevel
 
 //Cluster imports
 import akka.cluster.{ Cluster, ClusterEvent }
@@ -16,10 +15,6 @@ import org.slf4j.{LoggerFactory}
 import ch.qos.logback.classic.Level
 
 import java.net.InetAddress
-
-import akka.util.{ Timeout }
-import scala.concurrent.duration._
-
 import com.amazonaws.auth.{DefaultAWSCredentialsProviderChain, BasicAWSCredentials }
 
 
@@ -63,7 +58,8 @@ object Main {
       c.testTag, c.opsRate, c.maxOps, c.objSize,
       c.rangeReadStart, c.rangeReadEnd, c.endpoint, c.region,
       aidSkey,
-      c.fakeS3Latency, c.runToCompletion, c.minSlaves, c.debug, c.newBucket))  
+      c.fakeS3Latency, c.runToCompletion, c.minSlaves, 
+      c.debug, c.newBucket, c.suffix,c.prefix))  
         
     GetS3Client.get(MyConfig.cl.get)
       
@@ -106,7 +102,8 @@ object Main {
         
     implicit val asystem = ActorSystem("system",config.getConfig("Master").withFallback(config))    
     
-    val localReaper      = asystem.actorOf(Reaper.props,"Reaper") // to terminate at the end    
+    asystem.actorOf(Reaper.props,"Reaper") // to terminate at the end    
+
     val cluster          = Cluster.get(asystem)
     val flowControlActor = asystem.actorOf(FlowControlActor.props,"FlowControl")
         
